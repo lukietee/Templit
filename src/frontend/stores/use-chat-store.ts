@@ -79,22 +79,14 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         updateLastMessage(accumulated);
       }
 
-      // Parse hidden PROJECT block from assistant response
+      // Parse hidden PROJECT_MD block from assistant response
       const projectMatch = accumulated.match(
-        /<!--PROJECT:(\{[^]*?\})-->/
+        /<!--PROJECT_MD:([^]*?)-->/
       );
       if (projectMatch) {
-        try {
-          const data = JSON.parse(projectMatch[1]);
-          const { updateField } = useProjectStore.getState();
-          if (data.topic) updateField("topic", data.topic);
-          if (data.duration) updateField("duration", data.duration);
-          if (data.aspectRatio) updateField("aspectRatio", data.aspectRatio);
-        } catch {
-          // Ignore malformed JSON
-        }
-        // Strip the PROJECT block from the displayed message
-        const cleaned = accumulated.replace(/<!--PROJECT:\{[^]*?\}-->/, "").trimEnd();
+        useProjectStore.getState().setOverview(projectMatch[1].trim());
+        // Strip the block from the displayed message
+        const cleaned = accumulated.replace(/<!--PROJECT_MD:[^]*?-->/, "").trimEnd();
         updateLastMessage(cleaned);
       }
     } catch {
