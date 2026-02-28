@@ -2,119 +2,119 @@
 
 import React, { useEffect, useRef } from "react";
 
-export function LandingBackground() {
-    const blobRef = useRef<HTMLDivElement>(null);
-    const canvasRef = useRef<HTMLCanvasElement>(null);
+interface Dot {
+    x: number;
+    y: number;
+    originX: number;
+    originY: number;
+    vx: number;
+    vy: number;
+}
 
-    // Aurora Blob Tracking State (target mouse pos vs actual blob pos)
-    const target = useRef({ x: 0, y: 0 });
-    const current = useRef({ x: 0, y: 0 });
+export function LandingBackground() {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const mouse = useRef({ x: -1000, y: -1000 });
+    const dots = useRef<Dot[]>([]);
 
     useEffect(() => {
-        // Center blob initially
-        target.current.x = window.innerWidth / 2;
-        target.current.y = window.innerHeight / 2;
-        current.current.x = window.innerWidth / 2;
-        current.current.y = window.innerHeight / 2;
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+
+        let animationFrameId: number;
+
+        const initGrid = () => {
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            canvas.width = w;
+            canvas.height = h;
+
+            const spacing = 40;
+            const newDots: Dot[] = [];
+
+            for (let x = spacing / 2; x < w; x += spacing) {
+                for (let y = spacing / 2; y < h; y += spacing) {
+                    newDots.push({
+                        x,
+                        y,
+                        originX: x,
+                        originY: y,
+                        vx: 0,
+                        vy: 0,
+                    });
+                }
+            }
+            dots.current = newDots;
+        };
 
         const handleMouseMove = (e: MouseEvent) => {
-            target.current.x = e.clientX;
-            target.current.y = e.clientY;
+            mouse.current = { x: e.clientX, y: e.clientY };
         };
 
-        window.addEventListener("mousemove", handleMouseMove);
-
-        // Animation Loop for Blob and Grain
-        let animationFrameId: number;
-        let canvasWidth = window.innerWidth;
-        let canvasHeight = window.innerHeight;
-
-        // Canvas context setup
-        const ctx = canvasRef.current?.getContext("2d", { alpha: true });
-
-        const resizeCanvas = () => {
-            if (canvasRef.current) {
-                canvasWidth = window.innerWidth;
-                canvasHeight = window.innerHeight;
-                canvasRef.current.width = canvasWidth;
-                canvasRef.current.height = canvasHeight;
-            }
+        const handleMouseLeave = () => {
+            mouse.current = { x: -1000, y: -1000 };
         };
-
-        resizeCanvas();
-        window.addEventListener("resize", resizeCanvas);
 
         const render = () => {
-            // 1. Blob Lerping
-            // Lerp logic: current = current + (target - current) * smoothFactor
-            current.current.x += (target.current.x - current.current.x) * 0.05;
-            current.current.y += (target.current.y - current.current.y) * 0.05;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            if (blobRef.current) {
-                // Shift exact center to the pointer by subtracting half the blob's width (600px/2 = 300px)
-                const translateX = current.current.x - 300;
-                const translateY = current.current.y - 300;
-                blobRef.current.style.transform = `translate3d(${translateX}px, ${translateY}px, 0)`;
-            }
+            const radius = 180;
+            const lerpFactor = 0.1;
+            const maxDisplacement = 25;
 
-            // 2. Film Grain Redraw
-            if (ctx && canvasWidth > 0 && canvasHeight > 0) {
-                // Create an ImageData object for noise
-                const imageData = ctx.createImageData(canvasWidth, canvasHeight);
-                const data = imageData.data;
-                const length = data.length;
+            dots.current.forEach((dot) => {
+                const dx = mouse.current.x - dot.originX;
+                const dy = mouse.current.y - dot.originY;
+                const distSq = dx * dx + dy * dy;
+                const dist = Math.sqrt(distSq);
 
-                for (let i = 0; i < length; i += 4) {
-                    // Generate a purely random grayscale value
-                    const value = Math.random() * 255;
-                    data[i] = value;     // R
-                    data[i + 1] = value; // G
-                    data[i + 2] = value; // B
-                    // Randomize alpha very slightly for flicker, keeping it extremely subtle but visible
-                    data[i + 3] = Math.random() * 25; // Alpha out of 255 (25/255 is ~0.10)
+                let targetX = dot.originX;
+                let targetY = dot.originY;
+
+                if (dist < radius) {
+                    // Inverse falloff attraction: strength = 1 - (dist / radius)^2
+                    // Or a more pronounced curve: 1 - sin((dist/radius) * (PI/2))
+                    const strength = Math.pow(1 - dist / radius, 2);
+                    const angle = Math.atan2(dy, dx);
+
+                    targetX = dot.originX + Math.cos(angle) * strength * maxDisplacement;
+                    targetY = dot.originY + Math.sin(angle) * strength * maxDisplacement;
                 }
 
-                ctx.putImageData(imageData, 0, 0);
-            }
+                // Smooth Lerp
+                dot.x += (targetX - dot.x) * lerpFactor;
+                dot.y += (targetY - dot.y) * lerpFactor;
+
+                // Draw Dot
+                ctx.beginPath();
+                ctx.arc(dot.x, dot.y, 2, 0, Math.PI * 2);
+                ctx.fillStyle = "rgba(100, 120, 180, 0.4)";
+                ctx.fill();
+            });
 
             animationFrameId = requestAnimationFrame(render);
         };
 
+        initGrid();
+        window.addEventListener("mousemove", handleMouseMove);
+        window.addEventListener("mouseleave", handleMouseLeave);
+        window.addEventListener("resize", initGrid);
         render();
 
         return () => {
             window.removeEventListener("mousemove", handleMouseMove);
-            window.removeEventListener("resize", resizeCanvas);
+            window.removeEventListener("mouseleave", handleMouseLeave);
+            window.removeEventListener("resize", initGrid);
             cancelAnimationFrame(animationFrameId);
         };
     }, []);
 
     return (
-        <>
-            {/* Container to trap everything behind content */}
-            <div className="fixed inset-0 z-[-1] overflow-hidden pointer-events-none bg-white">
-
-                {/* Layer 1: Aurora Blob (Moving light gradient) */}
-                {/* We use a large rounded div that orbits the cursor, heavily blurred to act as an aura */}
-                <div
-                    ref={blobRef}
-                    className="absolute h-[600px] w-[600px] rounded-full bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400 opacity-80 blur-[100px] will-change-transform mix-blend-multiply"
-                />
-
-                {/* 
-          Static subtle central glow behind normal layout 
-          (so it's not totally white even when pointer is away) 
-        */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-blue-100/60 blur-[120px] pointer-events-none" />
-
-                {/* Layer 2: Film Grain Overlay */}
-                {/* A canvas that constantly redraws noise directly on top of the glowing aura, but behind layout */}
-                <canvas
-                    ref={canvasRef}
-                    className="absolute inset-0 w-full h-full mix-blend-overlay opacity-80"
-                    style={{ willChange: "contents" }}
-                />
-            </div>
-        </>
+        <canvas
+            ref={canvasRef}
+            className="fixed inset-0 z-[-1] pointer-events-none bg-white"
+        />
     );
 }
