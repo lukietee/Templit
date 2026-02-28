@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useChatStore } from "@/frontend/stores/use-chat-store";
 import { MessageSquare, Send, Loader2 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import { cn } from "@/frontend/lib/utils";
 
 export function ChatPlaceholder() {
@@ -67,6 +68,21 @@ export function ChatPlaceholder() {
                 <Loader2 className="w-3 h-3 animate-spin" />
                 Thinking...
               </span>
+            ) : msg.role === "assistant" ? (
+              <ReactMarkdown
+                components={{
+                  p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                  strong: ({ children }) => (
+                    <strong className="block text-[var(--foreground)] font-semibold mt-3 first:mt-0">
+                      {children}
+                    </strong>
+                  ),
+                  ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-1">{children}</ul>,
+                  li: ({ children }) => <li>{children}</li>,
+                }}
+              >
+                {msg.content}
+              </ReactMarkdown>
             ) : (
               msg.content
             )}
