@@ -157,6 +157,11 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     addMessage("assistant", "");
     set({ isLoading: true });
 
+    // Extract artistic style from project overview if available
+    const overview = useProjectStore.getState().overview || "";
+    const styleMatch = overview.match(/## Artistic Style\n([^\n#]+)/);
+    const artisticStyle = styleMatch?.[1]?.trim() || "";
+
     const attemptGeneration = async (): Promise<CharacterGroup[]> => {
       const res = await fetch("/api/generate-characters", {
         method: "POST",
@@ -168,6 +173,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
             name: img.label,
           })),
           message: content,
+          artisticStyle,
         }),
       });
 
