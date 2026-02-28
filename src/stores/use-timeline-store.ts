@@ -105,73 +105,44 @@ export const useTimelineStore = create<TimelineState>()((set) => ({
   clearSelection: () => set({ selectedClipId: null }),
 
   trimClipStart: (clipId, deltaTime) =>
-    set((s) => {
-      // Find the clip and its sourceId
-      let sourceId: string | null = null;
-      for (const t of s.tracks) {
-        for (const c of t.clips) {
-          if (c.id === clipId) {
-            sourceId = c.sourceId;
-            break;
-          }
-        }
-        if (sourceId) break;
-      }
-      if (!sourceId) return s;
+    set((s) => ({
+      tracks: s.tracks.map((t) => ({
+        ...t,
+        clips: t.clips.map((c) => {
+          if (c.id !== clipId) return c;
 
-      return {
-        tracks: s.tracks.map((t) => ({
-          ...t,
-          clips: t.clips.map((c) => {
-            if (c.sourceId !== sourceId) return c;
+          // deltaTime > 0 means trimming inward (moving start forward)
+          const newStart = c.start + deltaTime;
+          const newDuration = c.duration - deltaTime;
 
-            // deltaTime > 0 means trimming inward (moving start forward)
-            const newStart = c.start + deltaTime;
-            const newDuration = c.duration - deltaTime;
+          // Clamp: can't go before originalStart
+          const clampedStart = Math.max(c.originalStart, newStart);
+          // Clamp: duration must stay >= MIN_DURATION
+          const clampedDuration = Math.max(MIN_DURATION, newDuration - (clampedStart - newStart));
+          // Recalculate start based on clamped duration
+          const finalStart = c.start + c.duration - clampedDuration;
 
-            // Clamp: can't go before originalStart
-            const clampedStart = Math.max(c.originalStart, newStart);
-            // Clamp: duration must stay >= MIN_DURATION
-            const clampedDuration = Math.max(MIN_DURATION, newDuration - (clampedStart - newStart));
-            // Recalculate start based on clamped duration
-            const finalStart = c.start + c.duration - clampedDuration;
-
-            return { ...c, start: finalStart, duration: clampedDuration };
-          }),
-        })),
-      };
-    }),
+          return { ...c, start: finalStart, duration: clampedDuration };
+        }),
+      })),
+    })),
 
   trimClipEnd: (clipId, deltaTime) =>
-    set((s) => {
-      let sourceId: string | null = null;
-      for (const t of s.tracks) {
-        for (const c of t.clips) {
-          if (c.id === clipId) {
-            sourceId = c.sourceId;
-            break;
-          }
-        }
-        if (sourceId) break;
-      }
-      if (!sourceId) return s;
+    set((s) => ({
+      tracks: s.tracks.map((t) => ({
+        ...t,
+        clips: t.clips.map((c) => {
+          if (c.id !== clipId) return c;
 
-      return {
-        tracks: s.tracks.map((t) => ({
-          ...t,
-          clips: t.clips.map((c) => {
-            if (c.sourceId !== sourceId) return c;
+          // deltaTime > 0 means extending outward (making clip longer)
+          const newDuration = c.duration + deltaTime;
 
-            // deltaTime > 0 means extending outward (making clip longer)
-            const newDuration = c.duration + deltaTime;
+          // Clamp: can't exceed original end
+          const maxDuration = c.originalStart + c.originalDuration - c.start;
+          const clampedDuration = Math.min(maxDuration, Math.max(MIN_DURATION, newDuration));
 
-            // Clamp: can't exceed original end
-            const maxDuration = c.originalStart + c.originalDuration - c.start;
-            const clampedDuration = Math.min(maxDuration, Math.max(MIN_DURATION, newDuration));
-
-            return { ...c, duration: clampedDuration };
-          }),
-        })),
-      };
-    }),
+          return { ...c, duration: clampedDuration };
+        }),
+      })),
+    })),
 }));

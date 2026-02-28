@@ -1,8 +1,15 @@
 import { useEffect, useRef, useCallback } from "react";
 import { usePlaybackStore } from "@/stores/use-playback-store";
-import { useTimelineStore } from "@/stores/use-timeline-store";
+import { useTimelineStore, Clip } from "@/stores/use-timeline-store";
 
-export function useVideoSync(videoRef: React.RefObject<HTMLVideoElement | null>) {
+function getClip(type: "video" | "audio"): Clip | undefined {
+  return useTimelineStore.getState().tracks.find((t) => t.type === type)
+    ?.clips[0];
+}
+
+export function useVideoSync(
+  videoRef: React.RefObject<HTMLVideoElement | null>
+) {
   const seekSourceRef = useRef<"user" | "video">("video");
   const rafRef = useRef<number>(0);
 
@@ -16,13 +23,23 @@ export function useVideoSync(videoRef: React.RefObject<HTMLVideoElement | null>)
     if (!video) return;
 
     if (isPlaying) {
+      // If currentTime is outside clip range, seek to clip start first
+      const clip = getClip("video");
+      if (clip && clip.duration > 0) {
+        const clipEnd = clip.start + clip.duration;
+        if (video.currentTime < clip.start || video.currentTime >= clipEnd) {
+          video.currentTime = clip.start;
+          seekSourceRef.current = "video";
+          setCurrentTime(clip.start);
+        }
+      }
       video.play().catch(() => {
         pause();
       });
     } else {
       video.pause();
     }
-  }, [isPlaying, videoRef, pause]);
+  }, [isPlaying, videoRef, pause, setCurrentTime]);
 
   // Sync volume
   useEffect(() => {
@@ -47,6 +64,28 @@ export function useVideoSync(videoRef: React.RefObject<HTMLVideoElement | null>)
     if (!video || !isPlaying) return;
 
     const tick = () => {
+      // Enforce video clip end boundary
+      const videoClip = getClip("video");
+      if (videoClip && videoClip.duration > 0) {
+        const clipEnd = videoClip.start + videoClip.duration;
+        if (video.currentTime >= clipEnd) {
+          video.pause();
+          seekSourceRef.current = "video";
+          setCurrentTime(clipEnd);
+          pause();
+          return;
+        }
+      }
+
+      // Mute/unmute based on audio clip range
+      const audioClip = getClip("audio");
+      if (audioClip && audioClip.duration > 0) {
+        const audioStart = audioClip.start;
+        const audioEnd = audioClip.start + audioClip.duration;
+        const t = video.currentTime;
+        video.muted = t < audioStart || t >= audioEnd;
+      }
+
       seekSourceRef.current = "video";
       setCurrentTime(video.currentTime);
       rafRef.current = requestAnimationFrame(tick);
@@ -54,7 +93,7 @@ export function useVideoSync(videoRef: React.RefObject<HTMLVideoElement | null>)
     rafRef.current = requestAnimationFrame(tick);
 
     return () => cancelAnimationFrame(rafRef.current);
-  }, [isPlaying, videoRef, setCurrentTime]);
+  }, [isPlaying, videoRef, setCurrentTime, pause]);
 
   // Set duration + clip durations on loadedmetadata
   useEffect(() => {

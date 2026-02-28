@@ -17,6 +17,15 @@ export function useTimelineDrag(
       const scrollLeft = container.scrollLeft;
       const x = clientX - rect.left + scrollLeft;
       const time = x / zoom;
+      const videoClip = useTimelineStore
+        .getState()
+        .tracks.find((t) => t.type === "video")?.clips[0];
+      if (videoClip && videoClip.duration > 0) {
+        return Math.max(
+          videoClip.start,
+          Math.min(videoClip.start + videoClip.duration, time)
+        );
+      }
       const duration = usePlaybackStore.getState().duration;
       return Math.max(0, Math.min(duration, time));
     },

@@ -7,13 +7,16 @@ import { useTimelineDrag } from "@/hooks/use-timeline-drag";
 import { TimelineRuler } from "./timeline-ruler";
 import { TimelineTrack } from "./timeline-track";
 import { TimelinePlayhead } from "./timeline-playhead";
-import { ZoomIn, ZoomOut } from "lucide-react";
+import { ZoomIn, ZoomOut, Download, Loader2 } from "lucide-react";
 
 interface TimelineProps {
   seekTo: (time: number) => void;
+  onRender?: () => void;
+  isRendering?: boolean;
+  renderProgress?: number;
 }
 
-export function Timeline({ seekTo }: TimelineProps) {
+export function Timeline({ seekTo, onRender, isRendering, renderProgress }: TimelineProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { tracks, zoom, zoomIn, zoomOut } = useTimelineStore();
   const duration = usePlaybackStore((s) => s.duration);
@@ -27,6 +30,26 @@ export function Timeline({ seekTo }: TimelineProps) {
       <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--border)]">
         <span className="text-xs font-semibold text-[var(--foreground)]">Timeline</span>
         <div className="flex-1" />
+        {onRender && (
+          <button
+            onClick={onRender}
+            disabled={isRendering}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            title={isRendering ? "Rendering..." : "Export video"}
+          >
+            {isRendering ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                {Math.round((renderProgress ?? 0) * 100)}%
+              </>
+            ) : (
+              <>
+                <Download className="w-3.5 h-3.5" />
+                Export
+              </>
+            )}
+          </button>
+        )}
         <button
           onClick={zoomOut}
           className="p-1 rounded hover:bg-[var(--muted)] text-[var(--muted-foreground)] transition-colors"

@@ -5,11 +5,13 @@ import { Group, Panel, Separator } from "react-resizable-panels";
 import { ChatPlaceholder } from "@/components/chat/chat-placeholder";
 import { Timeline } from "./timeline";
 import { useVideoSync } from "@/hooks/use-video-sync";
+import { useVideoRender } from "@/hooks/use-video-render";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 
 export function EditorLayout() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { seekTo } = useVideoSync(videoRef);
+  const { renderVideo, isRendering, renderProgress } = useVideoRender(videoRef);
   useKeyboardShortcuts(seekTo);
 
   return (
@@ -27,14 +29,19 @@ export function EditorLayout() {
           <Group orientation="vertical">
             {/* Preview */}
             <Panel defaultSize="60%" minSize="30%">
-              <VideoPreviewWithRef videoRef={videoRef} />
+              <VideoPreviewWithRef videoRef={videoRef} isRendering={isRendering} />
             </Panel>
 
             <Separator className="h-1.5 bg-[var(--border)] hover:bg-[var(--accent)] transition-colors cursor-row-resize" />
 
             {/* Timeline */}
             <Panel defaultSize="40%" minSize="15%">
-              <Timeline seekTo={seekTo} />
+              <Timeline
+                seekTo={seekTo}
+                onRender={renderVideo}
+                isRendering={isRendering}
+                renderProgress={renderProgress}
+              />
             </Panel>
           </Group>
         </Panel>
@@ -45,8 +52,10 @@ export function EditorLayout() {
 
 function VideoPreviewWithRef({
   videoRef,
+  isRendering,
 }: {
   videoRef: React.RefObject<HTMLVideoElement | null>;
+  isRendering: boolean;
 }) {
   return (
     <div className="flex flex-col h-full bg-[#fafafa]">
@@ -58,14 +67,14 @@ function VideoPreviewWithRef({
           playsInline
         />
       </div>
-      {/* Controls are managed separately */}
-      <PlaybackControlsBar />
+      <PlaybackControlsBar isRendering={isRendering} />
     </div>
   );
 }
 
 // Inline playback controls to avoid circular ref issues
 import { usePlaybackStore } from "@/stores/use-playback-store";
+import { cn } from "@/lib/utils";
 import { Play, Pause, Volume2 } from "lucide-react";
 
 function formatTime(seconds: number): string {
@@ -74,14 +83,18 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-function PlaybackControlsBar() {
+function PlaybackControlsBar({ isRendering }: { isRendering: boolean }) {
   const { isPlaying, currentTime, duration, volume, togglePlay, setVolume } =
     usePlaybackStore();
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2 bg-white border-t border-[var(--border)]">
+    <div className={cn(
+      "flex items-center gap-3 px-4 py-2 bg-white border-t border-[var(--border)]",
+      isRendering && "opacity-50 pointer-events-none"
+    )}>
       <button
         onClick={togglePlay}
+        disabled={isRendering}
         className="w-8 h-8 flex items-center justify-center rounded-full bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] transition-colors"
       >
         {isPlaying ? (
