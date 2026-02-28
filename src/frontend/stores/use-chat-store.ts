@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { useProjectStore } from "./use-project-store";
 
 export interface ChatMessage {
   id: string;
@@ -76,6 +77,17 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         if (done) break;
         accumulated += decoder.decode(value, { stream: true });
         updateLastMessage(accumulated);
+      }
+
+      // Parse hidden PROJECT_MD block from assistant response
+      const projectMatch = accumulated.match(
+        /<!--PROJECT_MD:([^]*?)-->/
+      );
+      if (projectMatch) {
+        useProjectStore.getState().setOverview(projectMatch[1].trim());
+        // Strip the block from the displayed message
+        const cleaned = accumulated.replace(/<!--PROJECT_MD:[^]*?-->/, "").trimEnd();
+        updateLastMessage(cleaned);
       }
     } catch {
       updateLastMessage("Sorry, something went wrong. Please try again.");

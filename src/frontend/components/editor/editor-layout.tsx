@@ -4,6 +4,7 @@ import { useRef } from "react";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { ChatPlaceholder } from "@/frontend/components/chat/chat-placeholder";
 import { Timeline } from "./timeline";
+import { ProjectOverview } from "./project-overview";
 import { useVideoSync } from "@/frontend/hooks/use-video-sync";
 import { useVideoRender } from "@/frontend/hooks/use-video-render";
 import { useKeyboardShortcuts } from "@/frontend/hooks/use-keyboard-shortcuts";
@@ -27,9 +28,17 @@ export function EditorLayout() {
         {/* Editor panel */}
         <Panel defaultSize="75%" minSize="40%">
           <Group orientation="vertical">
-            {/* Preview */}
+            {/* Preview + Project Overview */}
             <Panel defaultSize="60%" minSize="30%">
-              <VideoPreviewWithRef videoRef={videoRef} isRendering={isRendering} />
+              <Group orientation="horizontal">
+                <Panel defaultSize="75%" minSize="50%">
+                  <VideoPreviewWithRef videoRef={videoRef} isRendering={isRendering} />
+                </Panel>
+                <Separator className="w-1 bg-[var(--border)] hover:bg-[var(--accent)] transition-colors cursor-col-resize" />
+                <Panel defaultSize="25%" minSize="15%">
+                  <ProjectOverview />
+                </Panel>
+              </Group>
             </Panel>
 
             <Separator className="h-1.5 bg-[var(--border)] hover:bg-[var(--accent)] transition-colors cursor-row-resize" />
