@@ -3,7 +3,7 @@
 import { Clip, Track } from "@/stores/use-timeline-store";
 import { useTimelineStore } from "@/stores/use-timeline-store";
 import { useClipTrim } from "@/hooks/use-clip-trim";
-import { Film, Music } from "lucide-react";
+import { useClipDrag } from "@/hooks/use-clip-drag";
 
 interface TimelineClipProps {
   clip: Clip;
@@ -15,10 +15,12 @@ interface TimelineClipProps {
 
 function TimelineClip({ clip, clipColor, zoom, isSelected, onSelect }: TimelineClipProps) {
   const { onTrimStart, onTrimEnd } = useClipTrim(clip.id);
+  const { onDragStart } = useClipDrag(clip.id);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     e.stopPropagation();
     onSelect(clip.id);
+    onDragStart(e);
   };
 
   return (
@@ -66,34 +68,21 @@ export function TimelineTrack({ track }: TimelineTrackProps) {
   const zoom = useTimelineStore((s) => s.zoom);
   const selectedClipId = useTimelineStore((s) => s.selectedClipId);
   const selectClip = useTimelineStore((s) => s.selectClip);
-
-  const Icon = track.type === "video" ? Film : Music;
   const clipColor =
     track.type === "video" ? "var(--clip-video)" : "var(--clip-audio)";
 
   return (
-    <div className="flex h-12 border-b border-[var(--border)]">
-      {/* Fixed label */}
-      <div className="w-24 flex-shrink-0 flex items-center gap-2 px-3 bg-white border-r border-[var(--border)]">
-        <Icon className="w-3.5 h-3.5 text-[var(--muted-foreground)]" />
-        <span className="text-xs font-medium text-[var(--foreground)]">
-          {track.label}
-        </span>
-      </div>
-
-      {/* Clips area */}
-      <div className="flex-1 relative bg-[var(--track-bg)]">
-        {track.clips.map((clip) => (
-          <TimelineClip
-            key={clip.id}
-            clip={clip}
-            clipColor={clipColor}
-            zoom={zoom}
-            isSelected={selectedClipId === clip.id}
-            onSelect={selectClip}
-          />
-        ))}
-      </div>
+    <div className="group/track h-12 border-b border-[var(--border)] relative bg-[var(--track-bg)]">
+      {track.clips.map((clip) => (
+        <TimelineClip
+          key={clip.id}
+          clip={clip}
+          clipColor={clipColor}
+          zoom={zoom}
+          isSelected={selectedClipId === clip.id}
+          onSelect={selectClip}
+        />
+      ))}
     </div>
   );
 }

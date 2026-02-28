@@ -7,7 +7,7 @@ import { useTimelineDrag } from "@/hooks/use-timeline-drag";
 import { TimelineRuler } from "./timeline-ruler";
 import { TimelineTrack } from "./timeline-track";
 import { TimelinePlayhead } from "./timeline-playhead";
-import { ZoomIn, ZoomOut, Download, Loader2 } from "lucide-react";
+import { ZoomIn, ZoomOut, Download, Loader2, Plus, Film, Music } from "lucide-react";
 
 interface TimelineProps {
   seekTo: (time: number) => void;
@@ -18,7 +18,7 @@ interface TimelineProps {
 
 export function Timeline({ seekTo, onRender, isRendering, renderProgress }: TimelineProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { tracks, zoom, zoomIn, zoomOut } = useTimelineStore();
+  const { tracks, zoom, zoomIn, zoomOut, addTrack } = useTimelineStore();
   const duration = usePlaybackStore((s) => s.duration);
   const { onMouseDown } = useTimelineDrag(seekTo, containerRef);
 
@@ -71,7 +71,6 @@ export function Timeline({ seekTo, onRender, isRendering, renderProgress }: Time
 
       {/* Scrollable timeline area */}
       <div className="flex-1 min-h-0 flex">
-        {/* Fixed track labels column - rendered by each track */}
         {/* Scrollable content */}
         <div
           ref={containerRef}
@@ -83,6 +82,28 @@ export function Timeline({ seekTo, onRender, isRendering, renderProgress }: Time
             {tracks.map((track) => (
               <TimelineTrack key={track.id} track={track} />
             ))}
+            {/* Add Track row */}
+            <div className="flex h-10 border-b border-[var(--border)]">
+              <div className="flex items-center gap-1.5 px-3 bg-white">
+                <button
+                  onClick={() => addTrack("video")}
+                  className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+                  title="Add video track"
+                >
+                  <Plus className="w-3 h-3" />
+                  <Film className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={() => addTrack("audio")}
+                  className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+                  title="Add audio track"
+                >
+                  <Plus className="w-3 h-3" />
+                  <Music className="w-3 h-3" />
+                </button>
+              </div>
+              <div className="flex-1 bg-[var(--track-bg)]" />
+            </div>
           </div>
           <TimelinePlayhead />
         </div>

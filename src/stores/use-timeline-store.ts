@@ -32,6 +32,11 @@ interface TimelineState {
   clearSelection: () => void;
   trimClipStart: (clipId: string, deltaTime: number) => void;
   trimClipEnd: (clipId: string, deltaTime: number) => void;
+  moveClip: (clipId: string, newStart: number) => void;
+  deleteClip: (clipId: string) => void;
+  addClip: (trackId: string, clip: Clip) => void;
+  addTrack: (type: "video" | "audio") => void;
+  removeTrack: (trackId: string) => void;
 }
 
 const MIN_DURATION = 0.1;
@@ -144,5 +149,46 @@ export const useTimelineStore = create<TimelineState>()((set) => ({
           return { ...c, duration: clampedDuration };
         }),
       })),
+    })),
+
+  moveClip: (clipId, newStart) =>
+    set((s) => ({
+      tracks: s.tracks.map((t) => ({
+        ...t,
+        clips: t.clips.map((c) =>
+          c.id === clipId ? { ...c, start: Math.max(0, newStart) } : c
+        ),
+      })),
+    })),
+
+  deleteClip: (clipId) =>
+    set((s) => ({
+      selectedClipId: s.selectedClipId === clipId ? null : s.selectedClipId,
+      tracks: s.tracks.map((t) => ({
+        ...t,
+        clips: t.clips.filter((c) => c.id !== clipId),
+      })),
+    })),
+
+  addClip: (trackId, clip) =>
+    set((s) => ({
+      tracks: s.tracks.map((t) =>
+        t.id === trackId ? { ...t, clips: [...t.clips, clip] } : t
+      ),
+    })),
+
+  addTrack: (type) =>
+    set((s) => {
+      const count = s.tracks.filter((t) => t.type === type).length + 1;
+      const id = `${type}-${Date.now()}`;
+      const label = `${type.charAt(0).toUpperCase() + type.slice(1)} ${count}`;
+      return {
+        tracks: [...s.tracks, { id, type, label, clips: [] }],
+      };
+    }),
+
+  removeTrack: (trackId) =>
+    set((s) => ({
+      tracks: s.tracks.filter((t) => t.id !== trackId),
     })),
 }));

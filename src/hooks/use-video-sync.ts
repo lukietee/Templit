@@ -2,9 +2,42 @@ import { useEffect, useRef, useCallback } from "react";
 import { usePlaybackStore } from "@/stores/use-playback-store";
 import { useTimelineStore, Clip } from "@/stores/use-timeline-store";
 
-function getClip(type: "video" | "audio"): Clip | undefined {
-  return useTimelineStore.getState().tracks.find((t) => t.type === type)
-    ?.clips[0];
+/** Collect all clips from tracks of the given type, sorted by timeline start. */
+function getClipsByType(type: "video" | "audio"): Clip[] {
+  const tracks = useTimelineStore.getState().tracks;
+  const clips: Clip[] = [];
+  for (const track of tracks) {
+    if (track.type === type) {
+      clips.push(...track.clips);
+    }
+  }
+  clips.sort((a, b) => a.start - b.start);
+  return clips;
+}
+
+/** Return the clip that contains the given timeline time, or null. */
+function findClipAtTime(clips: Clip[], time: number): Clip | null {
+  for (const clip of clips) {
+    if (clip.duration <= 0) continue;
+    if (clip.start <= time && time < clip.start + clip.duration) {
+      return clip;
+    }
+  }
+  return null;
+}
+
+/** Return the next clip that starts strictly after the given time, or null. */
+function findNextClip(clips: Clip[], time: number): Clip | null {
+  for (const clip of clips) {
+    if (clip.duration <= 0) continue;
+    if (clip.start > time) return clip;
+  }
+  return null;
+}
+
+/** Map a timeline time to the source video time for a given clip. */
+function timelineToSource(clip: Clip, timelineTime: number): number {
+  return clip.originalStart + (timelineTime - clip.start);
 }
 
 export function useVideoSync(
@@ -15,7 +48,6 @@ export function useVideoSync(
 
   const { isPlaying, currentTime, volume, setCurrentTime, setDuration, pause } =
     usePlaybackStore();
-  const setClipDuration = useTimelineStore((s) => s.setClipDuration);
 
   // Sync play/pause state to video element
   useEffect(() => {
@@ -23,16 +55,31 @@ export function useVideoSync(
     if (!video) return;
 
     if (isPlaying) {
-      // If currentTime is outside clip range, seek to clip start first
-      const clip = getClip("video");
-      if (clip && clip.duration > 0) {
-        const clipEnd = clip.start + clip.duration;
-        if (video.currentTime < clip.start || video.currentTime >= clipEnd) {
-          video.currentTime = clip.start;
+      const videoClips = getClipsByType("video");
+      let targetClip = findClipAtTime(videoClips, currentTime);
+
+      // If currentTime is in a gap, jump to the next clip's start
+      if (!targetClip) {
+        targetClip = findNextClip(videoClips, currentTime);
+        if (targetClip) {
           seekSourceRef.current = "video";
-          setCurrentTime(clip.start);
+          setCurrentTime(targetClip.start);
         }
       }
+
+      if (!targetClip) {
+        // No clips to play at or after currentTime — don't play
+        pause();
+        return;
+      }
+
+      // Seek source video to the correct position within the clip
+      const sourceTime = timelineToSource(targetClip, targetClip === findClipAtTime(videoClips, currentTime) ? currentTime : targetClip.start);
+      const tolerance = 0.1;
+      if (Math.abs(video.currentTime - sourceTime) > tolerance) {
+        video.currentTime = sourceTime;
+      }
+
       video.play().catch(() => {
         pause();
       });
@@ -53,7 +100,12 @@ export function useVideoSync(
     const video = videoRef.current;
     if (!video) return;
     if (seekSourceRef.current === "user") {
-      video.currentTime = currentTime;
+      // Map timeline time to source time for the clip at the seek target
+      const videoClips = getClipsByType("video");
+      const clip = findClipAtTime(videoClips, currentTime);
+      if (clip) {
+        video.currentTime = timelineToSource(clip, currentTime);
+      }
       seekSourceRef.current = "video";
     }
   }, [currentTime, videoRef]);
@@ -64,30 +116,66 @@ export function useVideoSync(
     if (!video || !isPlaying) return;
 
     const tick = () => {
-      // Enforce video clip end boundary
-      const videoClip = getClip("video");
-      if (videoClip && videoClip.duration > 0) {
-        const clipEnd = videoClip.start + videoClip.duration;
-        if (video.currentTime >= clipEnd) {
+      const videoClips = getClipsByType("video");
+      const audioClips = getClipsByType("audio");
+
+      // Determine which video clip the current timeline time falls within
+      const playbackTime = usePlaybackStore.getState().currentTime;
+      const activeClip = findClipAtTime(videoClips, playbackTime);
+
+      if (activeClip) {
+        // Map source video time back to timeline time
+        const expectedSourceTime = timelineToSource(activeClip, playbackTime);
+        const tolerance = 0.1;
+        if (Math.abs(video.currentTime - expectedSourceTime) > tolerance) {
+          video.currentTime = expectedSourceTime;
+        }
+
+        // Advance timeline time based on source video's current position
+        const newTimelineTime = activeClip.start + (video.currentTime - activeClip.originalStart);
+        const clipEnd = activeClip.start + activeClip.duration;
+
+        if (newTimelineTime >= clipEnd) {
+          // Current clip ended — find next video clip
+          const nextClip = findNextClip(videoClips, activeClip.start);
+          if (nextClip) {
+            // Seek to start of next clip
+            video.currentTime = nextClip.originalStart;
+            seekSourceRef.current = "video";
+            setCurrentTime(nextClip.start);
+          } else {
+            // No more clips — pause
+            video.pause();
+            seekSourceRef.current = "video";
+            setCurrentTime(clipEnd);
+            pause();
+            return;
+          }
+        } else {
+          seekSourceRef.current = "video";
+          setCurrentTime(newTimelineTime);
+        }
+      } else {
+        // Current time is in a gap — jump to next clip
+        const nextClip = findNextClip(videoClips, playbackTime);
+        if (nextClip) {
+          video.currentTime = nextClip.originalStart;
+          seekSourceRef.current = "video";
+          setCurrentTime(nextClip.start);
+        } else {
+          // No more clips — pause
           video.pause();
           seekSourceRef.current = "video";
-          setCurrentTime(clipEnd);
           pause();
           return;
         }
       }
 
-      // Mute/unmute based on audio clip range
-      const audioClip = getClip("audio");
-      if (audioClip && audioClip.duration > 0) {
-        const audioStart = audioClip.start;
-        const audioEnd = audioClip.start + audioClip.duration;
-        const t = video.currentTime;
-        video.muted = t < audioStart || t >= audioEnd;
-      }
+      // Audio: mute/unmute based on whether any audio clip covers current timeline time
+      const tlTime = usePlaybackStore.getState().currentTime;
+      const audioClip = findClipAtTime(audioClips, tlTime);
+      video.muted = !audioClip;
 
-      seekSourceRef.current = "video";
-      setCurrentTime(video.currentTime);
       rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
@@ -95,15 +183,26 @@ export function useVideoSync(
     return () => cancelAnimationFrame(rafRef.current);
   }, [isPlaying, videoRef, setCurrentTime, pause]);
 
-  // Set duration + clip durations on loadedmetadata
+  // Set duration on loadedmetadata
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
     const onLoaded = () => {
-      setDuration(video.duration);
-      setClipDuration("video-1", "clip-v1", video.duration);
-      setClipDuration("audio-1", "clip-a1", video.duration);
+      const videoDuration = video.duration;
+      setDuration(videoDuration);
+
+      // Set duration on the first video clip and first audio clip if they have zero duration
+      const tracks = useTimelineStore.getState().tracks;
+      const setClipDuration = useTimelineStore.getState().setClipDuration;
+      for (const track of tracks) {
+        if (track.clips.length > 0) {
+          const firstClip = track.clips[0];
+          if (firstClip.duration === 0) {
+            setClipDuration(track.id, firstClip.id, videoDuration);
+          }
+        }
+      }
     };
 
     // If already loaded
@@ -113,7 +212,7 @@ export function useVideoSync(
 
     video.addEventListener("loadedmetadata", onLoaded);
     return () => video.removeEventListener("loadedmetadata", onLoaded);
-  }, [videoRef, setDuration, setClipDuration]);
+  }, [videoRef, setDuration]);
 
   // Handle video ending
   useEffect(() => {

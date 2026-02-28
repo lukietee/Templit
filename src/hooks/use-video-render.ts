@@ -1,6 +1,42 @@
 import { useState, useCallback, useRef } from "react";
 import { usePlaybackStore } from "@/stores/use-playback-store";
-import { useTimelineStore } from "@/stores/use-timeline-store";
+import { useTimelineStore, Clip } from "@/stores/use-timeline-store";
+
+/** Collect all clips from tracks of the given type, sorted by timeline start. */
+function getClipsByType(type: "video" | "audio"): Clip[] {
+  const tracks = useTimelineStore.getState().tracks;
+  const clips: Clip[] = [];
+  for (const track of tracks) {
+    if (track.type === type) {
+      clips.push(...track.clips);
+    }
+  }
+  clips.sort((a, b) => a.start - b.start);
+  return clips;
+}
+
+/** Return the clip that contains the given timeline time, or null. */
+function findClipAtTime(clips: Clip[], time: number): Clip | null {
+  for (const clip of clips) {
+    if (clip.duration <= 0) continue;
+    if (clip.start <= time && time < clip.start + clip.duration) {
+      return clip;
+    }
+  }
+  return null;
+}
+
+/** Seek video and wait for the seek to complete. */
+function seekAndWait(video: HTMLVideoElement, time: number): Promise<void> {
+  return new Promise<void>((resolve) => {
+    const onSeeked = () => {
+      video.removeEventListener("seeked", onSeeked);
+      resolve();
+    };
+    video.addEventListener("seeked", onSeeked);
+    video.currentTime = time;
+  });
+}
 
 export function useVideoRender(
   videoRef: React.RefObject<HTMLVideoElement | null>
@@ -13,15 +49,10 @@ export function useVideoRender(
     const video = videoRef.current;
     if (!video || isRendering) return;
 
-    const tracks = useTimelineStore.getState().tracks;
-    const videoClip = tracks.find((t) => t.type === "video")?.clips[0];
-    const audioClip = tracks.find((t) => t.type === "audio")?.clips[0];
+    const videoClips = getClipsByType("video").filter((c) => c.duration > 0);
+    if (videoClips.length === 0) return;
 
-    if (!videoClip || videoClip.duration <= 0) return;
-
-    const clipStart = videoClip.start;
-    const clipEnd = videoClip.start + videoClip.duration;
-    const clipDuration = videoClip.duration;
+    const totalDuration = videoClips.reduce((sum, c) => sum + c.duration, 0);
 
     // Save previous state
     const wasPlaying = usePlaybackStore.getState().isPlaying;
@@ -31,18 +62,13 @@ export function useVideoRender(
     setRenderProgress(0);
     abortRef.current = false;
 
-    // Seek to clip start and wait
-    video.currentTime = clipStart;
-    await new Promise<void>((resolve) => {
-      const onSeeked = () => {
-        video.removeEventListener("seeked", onSeeked);
-        resolve();
-      };
-      video.addEventListener("seeked", onSeeked);
-    });
+    // Seek to start of first clip's source position
+    await seekAndWait(video, videoClips[0].originalStart);
 
     // Set up capture stream
-    const stream = (video as HTMLVideoElement & { captureStream: (fps?: number) => MediaStream }).captureStream();
+    const stream = (
+      video as HTMLVideoElement & { captureStream: (fps?: number) => MediaStream }
+    ).captureStream();
 
     // Choose codec
     let mimeType = "video/webm;codecs=vp9,opus";
@@ -73,44 +99,68 @@ export function useVideoRender(
     });
 
     recorder.start();
-    video.muted = false;
-    await video.play();
 
-    // rAF loop to track progress and stop at clip end
-    await new Promise<void>((resolve) => {
-      const tick = () => {
-        if (abortRef.current) {
-          video.pause();
-          recorder.stop();
-          resolve();
-          return;
-        }
+    // Process clips sequentially
+    let totalRendered = 0;
 
-        const t = video.currentTime;
+    for (let i = 0; i < videoClips.length; i++) {
+      if (abortRef.current) break;
 
-        // Audio clip muting
-        if (audioClip && audioClip.duration > 0) {
-          const audioStart = audioClip.start;
-          const audioEnd = audioClip.start + audioClip.duration;
-          video.muted = t < audioStart || t >= audioEnd;
-        }
+      const clip = videoClips[i];
+      const clipSourceStart = clip.originalStart;
+      const clipSourceEnd = clip.originalStart + clip.duration;
 
-        // Progress
-        const elapsed = t - clipStart;
-        setRenderProgress(Math.min(1, elapsed / clipDuration));
+      // Seek to clip's source start position and wait
+      await seekAndWait(video, clipSourceStart);
 
-        // Check if done
-        if (t >= clipEnd) {
-          video.pause();
-          recorder.stop();
-          resolve();
-          return;
-        }
+      // Play this clip segment
+      video.muted = false;
+      await video.play();
 
+      // rAF loop: record until the source reaches clip end
+      const clipRenderedBefore = totalRendered;
+      await new Promise<void>((resolve) => {
+        const tick = () => {
+          if (abortRef.current) {
+            video.pause();
+            resolve();
+            return;
+          }
+
+          const sourceTime = video.currentTime;
+
+          // Map source time back to timeline time for audio muting check
+          const timelineTime = clip.start + (sourceTime - clip.originalStart);
+
+          // Audio: mute/unmute based on whether any audio clip covers this timeline time
+          const audioClips = getClipsByType("audio");
+          const audioClip = findClipAtTime(audioClips, timelineTime);
+          video.muted = !audioClip;
+
+          // Progress
+          const elapsedInClip = sourceTime - clipSourceStart;
+          totalRendered = clipRenderedBefore + Math.max(0, elapsedInClip);
+          setRenderProgress(Math.min(1, totalRendered / totalDuration));
+
+          // Check if clip segment is done
+          if (sourceTime >= clipSourceEnd) {
+            video.pause();
+            totalRendered = clipRenderedBefore + clip.duration;
+            setRenderProgress(Math.min(1, totalRendered / totalDuration));
+            resolve();
+            return;
+          }
+
+          requestAnimationFrame(tick);
+        };
         requestAnimationFrame(tick);
-      };
-      requestAnimationFrame(tick);
-    });
+      });
+    }
+
+    // Stop recording
+    if (recorder.state !== "inactive") {
+      recorder.stop();
+    }
 
     await renderDone;
 

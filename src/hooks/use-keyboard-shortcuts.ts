@@ -16,6 +16,16 @@ export function useKeyboardShortcuts(
         case "Escape":
           useTimelineStore.getState().clearSelection();
           break;
+        case "Delete":
+        case "Backspace": {
+          const { selectedClipId, deleteClip, clearSelection } = useTimelineStore.getState();
+          if (selectedClipId) {
+            e.preventDefault();
+            deleteClip(selectedClipId);
+            clearSelection();
+          }
+          break;
+        }
         case "Space":
           e.preventDefault();
           togglePlay();
