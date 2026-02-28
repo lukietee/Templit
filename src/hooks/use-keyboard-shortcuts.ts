@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { usePlaybackStore } from "@/stores/use-playback-store";
+import { useTimelineStore } from "@/stores/use-timeline-store";
 
 export function useKeyboardShortcuts(
   seekTo: (time: number) => void
@@ -12,6 +13,9 @@ export function useKeyboardShortcuts(
       if (tag === "input" || tag === "textarea") return;
 
       switch (e.code) {
+        case "Escape":
+          useTimelineStore.getState().clearSelection();
+          break;
         case "Space":
           e.preventDefault();
           togglePlay();

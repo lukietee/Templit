@@ -26,6 +26,7 @@ export function useTimelineDrag(
   const onMouseDown = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
+      useTimelineStore.getState().clearSelection();
       const { isPlaying, pause, setIsSeeking } = usePlaybackStore.getState();
       wasPlayingRef.current = isPlaying;
       if (isPlaying) pause();
