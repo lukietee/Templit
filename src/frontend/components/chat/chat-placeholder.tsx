@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useChatStore } from "@/frontend/stores/use-chat-store";
-import { MessageSquare, Send, Loader2 } from "lucide-react";
+import { MessageSquare, Send, Loader2, Plus, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/frontend/lib/utils";
 
@@ -12,8 +12,10 @@ export function ChatPlaceholder() {
   const sendMessage = useChatStore((s) => s.sendMessage);
   const [input, setInput] = useState("");
   const initializeWithPrompt = useChatStore((s) => s.initializeWithPrompt);
+  const [files, setFiles] = useState<File[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Read landing page prompt from sessionStorage on mount
   useEffect(() => {
@@ -41,10 +43,18 @@ export function ChatPlaceholder() {
     const trimmed = input.trim();
     if (!trimmed || isLoading) return;
     setInput("");
+    setFiles([]);
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
     sendMessage(trimmed);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setFiles((prev) => [...prev, ...Array.from(e.target.files!)]);
+    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -103,7 +113,43 @@ export function ChatPlaceholder() {
 
       {/* Input */}
       <div className="px-4 py-3 border-t border-[var(--border)]">
+        {files.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {files.map((file, i) => (
+              <span
+                key={`${file.name}-${i}`}
+                className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 bg-[var(--muted)] text-xs text-[var(--muted-foreground)] border border-[var(--border)]"
+              >
+                {file.name}
+                <button
+                  onClick={() => setFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                  className="hover:text-[var(--foreground)] transition-colors"
+                >
+                  <X size={10} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
         <div className="flex gap-2 items-end">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isLoading}
+            className={cn(
+              "p-2 rounded-lg border border-[var(--border)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors",
+              isLoading && "opacity-50 cursor-not-allowed"
+            )}
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="image/*,audio/*"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
           <textarea
             ref={textareaRef}
             placeholder="Type a message..."
