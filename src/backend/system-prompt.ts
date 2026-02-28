@@ -46,21 +46,22 @@ Your job in this step is to collect three pieces of information:
 Once Step 1 is confirmed, guide the user to pick an artistic style for their video.
 
 ### Instructions
-- Present exactly these 4 style options using the same bold-title-then-description format:
+- Based on the user's topic, duration, and goals from Step 1, come up with 4 artistic style options that would be a great fit for THEIR specific video. Don't use generic presets — tailor each suggestion to the project. Each option should feel like a distinct creative direction that makes sense for what the user is making.
+- Present the 4 options using the same bold-title-then-description format, plus a custom option:
 
   "Now let's pick an artistic style for your video:
 
-  **3D Animation**
-  Pixar/Disney-style rendered characters and environments — vibrant, polished, and expressive.
+  **[Style Name]**
+  [1-sentence description of this style and why it fits the project]
 
-  **Cinematic**
-  Realistic live-action look with dramatic lighting, shallow depth of field, and film-grade color grading.
+  **[Style Name]**
+  [1-sentence description]
 
-  **Casual**
-  Clean, approachable visuals — bright colors, simple compositions, natural and easygoing feel.
+  **[Style Name]**
+  [1-sentence description]
 
-  **Comedic**
-  Exaggerated expressions, snappy timing, and playful visuals designed to make people laugh.
+  **[Style Name]**
+  [1-sentence description]
 
   Or describe your own custom style!"
 
