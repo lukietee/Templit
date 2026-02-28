@@ -13,6 +13,7 @@ export function ChatPlaceholder() {
   const [input, setInput] = useState("");
   const initializeWithPrompt = useChatStore((s) => s.initializeWithPrompt);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Read landing page prompt from sessionStorage on mount
   useEffect(() => {
@@ -40,7 +41,17 @@ export function ChatPlaceholder() {
     const trimmed = input.trim();
     if (!trimmed || isLoading) return;
     setInput("");
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
     sendMessage(trimmed);
+  };
+
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
+    const el = e.target;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
   };
 
   return (
@@ -92,21 +103,22 @@ export function ChatPlaceholder() {
 
       {/* Input */}
       <div className="px-4 py-3 border-t border-[var(--border)]">
-        <div className="flex gap-2">
-          <input
-            type="text"
+        <div className="flex gap-2 items-end">
+          <textarea
+            ref={textareaRef}
             placeholder="Type a message..."
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={handleTextareaChange}
             onKeyDown={(e) => {
-              if (e.key === "Enter") {
+              if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 handleSend();
               }
             }}
+            rows={1}
             disabled={isLoading}
             className={cn(
-              "flex-1 text-sm px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--muted)] text-[var(--foreground)] outline-none focus:ring-1 focus:ring-[var(--accent)]",
+              "flex-1 text-sm px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--muted)] text-[var(--foreground)] outline-none focus:ring-1 focus:ring-[var(--accent)] resize-none max-h-32 overflow-y-auto",
               isLoading && "opacity-50 cursor-not-allowed"
             )}
           />
