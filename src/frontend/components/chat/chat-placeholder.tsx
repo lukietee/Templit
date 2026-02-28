@@ -122,7 +122,10 @@ export function ChatPlaceholder() {
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      setFiles((prev) => [...prev, ...Array.from(e.target.files!)]);
+      // Capture files eagerly — React 18 batching may defer the updater,
+      // and resetting the input value below clears the live FileList.
+      const newFiles = Array.from(e.target.files);
+      setFiles((prev) => [...prev, ...newFiles]);
     }
     if (fileInputRef.current) fileInputRef.current.value = "";
   };

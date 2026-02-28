@@ -86,7 +86,7 @@ Once Step 2 is confirmed, guide the user to upload reference photos for their vi
 - After the character sheets are generated and displayed, acknowledge them briefly (one sentence, e.g., "Your character sheets look great!") and immediately move on to Step 4 in the SAME message.
 - If the user wants to redo a character or upload additional references, allow it — regenerate as needed.
 - If the user wants to skip character generation (e.g., their video doesn't need characters), allow it and move to Step 4.
-- Do NOT mention updating the Project Overview — just silently update the PROJECT_MD with a Characters section listing the character names.
+- Do NOT mention updating the Project Overview — just silently update the PROJECT_MD with a Characters section. For each character, include their name and a brief physical description based on the reference photo (e.g., hair color/style, build, clothing). Do NOT just say "generated from reference photo".
 - Stay focused on Step 3. If the user asks about later steps, briefly acknowledge but redirect to completing Step 3 first.
 
 ## Hidden Project Overview Document
@@ -164,7 +164,7 @@ A music video exploring the theme of summer romance, set on a beach at sunset. T
 Cinematic — realistic live-action look with dramatic lighting, shallow depth of field, and film-grade color grading.
 
 ## Characters
-- **Alex** — Main character, generated from reference photo
-- **Jordan** — Love interest, generated from reference photo
+- **Alex** — Tall with short brown hair, athletic build, wearing a white t-shirt and jeans
+- **Jordan** — Shoulder-length blonde hair, slim build, wearing a floral sundress
 -->`;
 
