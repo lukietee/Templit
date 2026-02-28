@@ -1,13 +1,11 @@
 import { PromptBox } from "@/frontend/components/landing/prompt-box";
 import { Logo } from "@/frontend/components/landing/logo";
+import { LandingBackground } from "@/frontend/components/landing/landing-background";
 
 export default function Home() {
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center px-4 bg-white overflow-hidden">
-      {/* Background radial glow */}
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-        <div className="h-[500px] w-[800px] bg-gradient-to-r from-blue-100 to-indigo-100 blur-[100px] rounded-full opacity-60" />
-      </div>
+    <main className="relative flex min-h-screen flex-col items-center justify-center px-4">
+      <LandingBackground />
 
       <div className="relative z-10 flex flex-col items-center gap-10 w-full max-w-2xl mx-auto">
         <div className="flex flex-col items-center gap-4 text-center">
