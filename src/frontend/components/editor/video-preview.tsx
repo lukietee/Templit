@@ -1,8 +1,8 @@
 "use client";
 
 import { useRef } from "react";
-import { useVideoSync } from "@/hooks/use-video-sync";
-import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { useVideoSync } from "@/frontend/hooks/use-video-sync";
+import { useKeyboardShortcuts } from "@/frontend/hooks/use-keyboard-shortcuts";
 import { PlaybackControls } from "./playback-controls";
 
 export function VideoPreview() {

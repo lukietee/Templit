@@ -1,6 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
-
-const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY });
+import { ai, GEMINI_MODEL } from "@/backend/gemini";
 
 export async function POST(req: Request) {
   try {
@@ -16,7 +14,7 @@ export async function POST(req: Request) {
     const lastMessage = messages[messages.length - 1].content;
 
     const chat = ai.chats.create({
-      model: "gemini-2.5-flash",
+      model: GEMINI_MODEL,
       history,
     });
 

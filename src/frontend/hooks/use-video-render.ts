@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from "react";
-import { usePlaybackStore } from "@/stores/use-playback-store";
-import { useTimelineStore, Clip } from "@/stores/use-timeline-store";
+import { usePlaybackStore } from "@/frontend/stores/use-playback-store";
+import { useTimelineStore, Clip } from "@/frontend/stores/use-timeline-store";
 
 /** Collect all clips from tracks of the given type, sorted by timeline start. */
 function getClipsByType(type: "video" | "audio"): Clip[] {

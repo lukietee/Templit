@@ -1,4 +1,4 @@
-import { PromptBox } from "@/components/landing/prompt-box";
+import { PromptBox } from "@/frontend/components/landing/prompt-box";
 
 export default function Home() {
   return (

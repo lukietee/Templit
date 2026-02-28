@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useChatStore } from "@/stores/use-chat-store";
+import { useChatStore } from "@/frontend/stores/use-chat-store";
 import { MessageSquare, Send, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/frontend/lib/utils";
 
 export function ChatPlaceholder() {
   const messages = useChatStore((s) => s.messages);

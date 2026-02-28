@@ -1,6 +1,6 @@
 import { useCallback, useRef } from "react";
-import { usePlaybackStore } from "@/stores/use-playback-store";
-import { useTimelineStore } from "@/stores/use-timeline-store";
+import { usePlaybackStore } from "@/frontend/stores/use-playback-store";
+import { useTimelineStore } from "@/frontend/stores/use-timeline-store";
 
 export function useTimelineDrag(
   seekTo: (time: number) => void,

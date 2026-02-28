@@ -1,7 +1,7 @@
 "use client";
 
-import { usePlaybackStore } from "@/stores/use-playback-store";
-import { useTimelineStore } from "@/stores/use-timeline-store";
+import { usePlaybackStore } from "@/frontend/stores/use-playback-store";
+import { useTimelineStore } from "@/frontend/stores/use-timeline-store";
 
 export function TimelinePlayhead() {
   const currentTime = usePlaybackStore((s) => s.currentTime);

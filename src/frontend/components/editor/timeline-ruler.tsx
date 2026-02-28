@@ -1,7 +1,7 @@
 "use client";
 
-import { usePlaybackStore } from "@/stores/use-playback-store";
-import { useTimelineStore } from "@/stores/use-timeline-store";
+import { usePlaybackStore } from "@/frontend/stores/use-playback-store";
+import { useTimelineStore } from "@/frontend/stores/use-timeline-store";
 
 function formatRulerTime(seconds: number): string {
   const m = Math.floor(seconds / 60);

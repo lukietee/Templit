@@ -2,11 +2,11 @@
 
 import { useRef } from "react";
 import { Group, Panel, Separator } from "react-resizable-panels";
-import { ChatPlaceholder } from "@/components/chat/chat-placeholder";
+import { ChatPlaceholder } from "@/frontend/components/chat/chat-placeholder";
 import { Timeline } from "./timeline";
-import { useVideoSync } from "@/hooks/use-video-sync";
-import { useVideoRender } from "@/hooks/use-video-render";
-import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { useVideoSync } from "@/frontend/hooks/use-video-sync";
+import { useVideoRender } from "@/frontend/hooks/use-video-render";
+import { useKeyboardShortcuts } from "@/frontend/hooks/use-keyboard-shortcuts";
 
 export function EditorLayout() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -73,8 +73,8 @@ function VideoPreviewWithRef({
 }
 
 // Inline playback controls to avoid circular ref issues
-import { usePlaybackStore } from "@/stores/use-playback-store";
-import { cn } from "@/lib/utils";
+import { usePlaybackStore } from "@/frontend/stores/use-playback-store";
+import { cn } from "@/frontend/lib/utils";
 import { Play, Pause, Volume2 } from "lucide-react";
 
 function formatTime(seconds: number): string {

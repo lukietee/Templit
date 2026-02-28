@@ -1,6 +1,6 @@
 "use client";
 
-import { usePlaybackStore } from "@/stores/use-playback-store";
+import { usePlaybackStore } from "@/frontend/stores/use-playback-store";
 import { Play, Pause, Volume2 } from "lucide-react";
 
 function formatTime(seconds: number): string {

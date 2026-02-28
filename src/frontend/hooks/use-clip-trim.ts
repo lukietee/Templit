@@ -1,5 +1,5 @@
 import { useCallback, useRef } from "react";
-import { useTimelineStore } from "@/stores/use-timeline-store";
+import { useTimelineStore } from "@/frontend/stores/use-timeline-store";
 
 export function useClipTrim(clipId: string) {
   const lastXRef = useRef(0);

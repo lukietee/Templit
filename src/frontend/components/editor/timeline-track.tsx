@@ -1,9 +1,9 @@
 "use client";
 
-import { Clip, Track } from "@/stores/use-timeline-store";
-import { useTimelineStore } from "@/stores/use-timeline-store";
-import { useClipTrim } from "@/hooks/use-clip-trim";
-import { useClipDrag } from "@/hooks/use-clip-drag";
+import { Clip, Track } from "@/frontend/stores/use-timeline-store";
+import { useTimelineStore } from "@/frontend/stores/use-timeline-store";
+import { useClipTrim } from "@/frontend/hooks/use-clip-trim";
+import { useClipDrag } from "@/frontend/hooks/use-clip-drag";
 
 interface TimelineClipProps {
   clip: Clip;

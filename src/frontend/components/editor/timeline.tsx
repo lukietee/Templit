@@ -1,9 +1,9 @@
 "use client";
 
 import { useRef } from "react";
-import { useTimelineStore } from "@/stores/use-timeline-store";
-import { usePlaybackStore } from "@/stores/use-playback-store";
-import { useTimelineDrag } from "@/hooks/use-timeline-drag";
+import { useTimelineStore } from "@/frontend/stores/use-timeline-store";
+import { usePlaybackStore } from "@/frontend/stores/use-playback-store";
+import { useTimelineDrag } from "@/frontend/hooks/use-timeline-drag";
 import { TimelineRuler } from "./timeline-ruler";
 import { TimelineTrack } from "./timeline-track";
 import { TimelinePlayhead } from "./timeline-playhead";
