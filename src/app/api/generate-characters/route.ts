@@ -64,7 +64,8 @@ async function generateCharacterViews(
 ${styleInstruction}
 
 Requirements:
-- Each image should show the FULL character on a plain WHITE background
+- Each image should show the FULL character on a plain WHITE background with NO other elements
+- Do NOT add any text, labels, captions, watermarks, or annotations onto the images. The images must contain ONLY the character on white — absolutely no words or letters
 - Maintain consistent appearance (clothing, hair, proportions) across all views
 - The character should be standing in a neutral pose
 - The images must match the person's real appearance as closely as possible
