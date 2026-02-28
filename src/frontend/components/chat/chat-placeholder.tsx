@@ -10,7 +10,22 @@ export function ChatPlaceholder() {
   const isLoading = useChatStore((s) => s.isLoading);
   const sendMessage = useChatStore((s) => s.sendMessage);
   const [input, setInput] = useState("");
+  const initializeWithPrompt = useChatStore((s) => s.initializeWithPrompt);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Read landing page prompt from sessionStorage on mount
+  useEffect(() => {
+    const stored = sessionStorage.getItem("templit-prompt");
+    if (!stored) return;
+    try {
+      const { prompt } = JSON.parse(stored) as { prompt: string };
+      if (prompt) {
+        initializeWithPrompt(prompt);
+      }
+    } catch {
+      // Invalid JSON — ignore
+    }
+  }, [initializeWithPrompt]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {

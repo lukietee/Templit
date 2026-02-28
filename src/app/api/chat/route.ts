@@ -1,4 +1,5 @@
 import { ai, GEMINI_MODEL } from "@/backend/gemini";
+import { SYSTEM_PROMPT } from "@/backend/system-prompt";
 
 export async function POST(req: Request) {
   try {
@@ -16,6 +17,7 @@ export async function POST(req: Request) {
     const chat = ai.chats.create({
       model: GEMINI_MODEL,
       history,
+      config: { systemInstruction: SYSTEM_PROMPT },
     });
 
     const stream = (await chat).sendMessageStream({ message: lastMessage });

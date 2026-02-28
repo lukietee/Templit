@@ -10,22 +10,20 @@ export interface ChatMessage {
 interface ChatState {
   messages: ChatMessage[];
   isLoading: boolean;
+  currentStep: number;
+  initialized: boolean;
   addMessage: (role: "user" | "assistant", content: string) => void;
   updateLastMessage: (content: string) => void;
   sendMessage: (content: string) => Promise<void>;
+  initializeWithPrompt: (prompt: string) => void;
+  setCurrentStep: (step: number) => void;
 }
 
 export const useChatStore = create<ChatState>()((set, get) => ({
-  messages: [
-    {
-      id: "welcome",
-      role: "assistant",
-      content:
-        "Welcome to Templit! I'll help you create your video. The editor is ready — use the preview and timeline to review your footage.",
-      timestamp: Date.now(),
-    },
-  ],
+  messages: [],
   isLoading: false,
+  currentStep: 1,
+  initialized: false,
 
   addMessage: (role, content) =>
     set((s) => ({
@@ -85,4 +83,13 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       set({ isLoading: false });
     }
   },
+
+  initializeWithPrompt: (prompt) => {
+    const { initialized, sendMessage } = get();
+    if (initialized) return;
+    set({ initialized: true });
+    sendMessage(prompt);
+  },
+
+  setCurrentStep: (step) => set({ currentStep: step }),
 }));
