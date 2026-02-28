@@ -10,44 +10,64 @@ import { MessageSquare, Send, Loader2, Plus, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/frontend/lib/utils";
 
-function CharacterGrid({ group }: { group: CharacterGroup }) {
+function CharacterGrid({
+  group,
+  onImageClick,
+}: {
+  group: CharacterGroup;
+  onImageClick: (src: string) => void;
+}) {
   return (
     <div className="mt-3">
       <p className="text-sm font-semibold text-[var(--foreground)] mb-2 px-1">
         {group.name}
       </p>
       <div className="grid grid-cols-2 gap-1.5">
-        {group.images.map((img, i) => (
-          <div key={i} className="relative">
-            <img
-              src={`data:${img.mimeType};base64,${img.data}`}
-              alt={`${group.name} — ${img.label}`}
-              className="w-full aspect-square object-cover rounded-md border border-[var(--border)]"
-            />
-            {img.label && (
-              <span className="absolute bottom-1 left-1 text-[10px] bg-black/60 text-white px-1.5 py-0.5 rounded">
-                {img.label}
-              </span>
-            )}
-          </div>
-        ))}
+        {group.images.map((img, i) => {
+          const src = `data:${img.mimeType};base64,${img.data}`;
+          return (
+            <div key={i} className="relative">
+              <img
+                src={src}
+                alt={`${group.name} — ${img.label}`}
+                className="w-full aspect-square object-cover rounded-md border border-[var(--border)] cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => onImageClick(src)}
+              />
+              {img.label && (
+                <span className="absolute bottom-1 left-1 text-[10px] bg-black/60 text-white px-1.5 py-0.5 rounded">
+                  {img.label}
+                </span>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-function UserImageThumbnails({ msg }: { msg: ChatMessage }) {
+function UserImageThumbnails({
+  msg,
+  onImageClick,
+}: {
+  msg: ChatMessage;
+  onImageClick: (src: string) => void;
+}) {
   if (!msg.images || msg.images.length === 0) return null;
   return (
     <div className="flex flex-wrap gap-1.5 mt-1.5">
-      {msg.images.map((img, i) => (
-        <img
-          key={i}
-          src={`data:${img.mimeType};base64,${img.data}`}
-          alt={img.label || `Upload ${i + 1}`}
-          className="w-16 h-16 object-cover rounded-md border border-white/20"
-        />
-      ))}
+      {msg.images.map((img, i) => {
+        const src = `data:${img.mimeType};base64,${img.data}`;
+        return (
+          <img
+            key={i}
+            src={src}
+            alt={img.label || `Upload ${i + 1}`}
+            className="w-16 h-16 object-cover rounded-md border border-white/20 cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => onImageClick(src)}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -61,6 +81,7 @@ export function ChatPlaceholder() {
   const initializeWithPrompt = useChatStore((s) => s.initializeWithPrompt);
   const [files, setFiles] = useState<File[]>([]);
   const [filePreviews, setFilePreviews] = useState<string[]>([]);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -86,6 +107,16 @@ export function ChatPlaceholder() {
       behavior: "smooth",
     });
   }, [messages]);
+
+  // Close lightbox on Escape
+  useEffect(() => {
+    if (!lightboxSrc) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setLightboxSrc(null);
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [lightboxSrc]);
 
   // Generate previews for image files
   useEffect(() => {
@@ -183,18 +214,39 @@ export function ChatPlaceholder() {
                   </ReactMarkdown>
                 )}
                 {msg.characterGroups?.map((group, i) => (
-                  <CharacterGrid key={i} group={group} />
+                  <CharacterGrid key={i} group={group} onImageClick={setLightboxSrc} />
                 ))}
               </>
             ) : (
               <>
                 {msg.content}
-                <UserImageThumbnails msg={msg} />
+                <UserImageThumbnails msg={msg} onImageClick={setLightboxSrc} />
               </>
             )}
           </div>
         ))}
       </div>
+
+      {/* Lightbox */}
+      {lightboxSrc && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
+          onClick={() => setLightboxSrc(null)}
+        >
+          <button
+            className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors"
+            onClick={() => setLightboxSrc(null)}
+          >
+            <X size={24} />
+          </button>
+          <img
+            src={lightboxSrc}
+            alt="Preview"
+            className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
 
       {/* Input */}
       <div className="px-4 py-3 border-t border-[var(--border)]">
