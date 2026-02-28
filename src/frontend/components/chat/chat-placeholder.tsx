@@ -12,8 +12,8 @@ import { cn } from "@/frontend/lib/utils";
 
 function CharacterGrid({ group }: { group: CharacterGroup }) {
   return (
-    <div className="mt-2">
-      <p className="text-xs font-semibold text-[var(--foreground)] mb-1.5">
+    <div className="mt-3">
+      <p className="text-sm font-semibold text-[var(--foreground)] mb-2 px-1">
         {group.name}
       </p>
       <div className="grid grid-cols-2 gap-1.5">

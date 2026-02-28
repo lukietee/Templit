@@ -157,8 +157,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     addMessage("assistant", "");
     set({ isLoading: true });
 
-    try {
-      // Generate character views
+    const attemptGeneration = async (): Promise<CharacterGroup[]> => {
       const res = await fetch("/api/generate-characters", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -173,12 +172,37 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       });
 
       if (!res.ok) {
-        throw new Error(`API error: ${res.status}`);
+        const body = await res.text().catch(() => "");
+        throw new Error(`API error ${res.status}: ${body}`);
       }
 
       const { characters } = (await res.json()) as {
         characters: CharacterGroup[];
       };
+      return characters;
+    };
+
+    try {
+      updateLastMessage("Generating character sheets...");
+
+      // Retry up to 2 times on the client side (server also retries internally)
+      let characters: CharacterGroup[] | null = null;
+      let lastError: unknown;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          characters = await attemptGeneration();
+          break;
+        } catch (err) {
+          lastError = err;
+          if (attempt === 0) {
+            updateLastMessage("First attempt didn't work, retrying...");
+          }
+        }
+      }
+
+      if (!characters) {
+        throw lastError ?? new Error("Generation failed");
+      }
 
       // Update assistant message with character groups
       updateLastMessage(
@@ -187,7 +211,6 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       );
 
       // Now send a follow-up to the chat API so the agent can acknowledge and move on
-      // Build history including the character generation context
       const msgs = get().messages;
       const history = msgs.map((m) => ({
         role: m.role,
