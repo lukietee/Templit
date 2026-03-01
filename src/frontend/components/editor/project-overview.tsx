@@ -1,7 +1,7 @@
 "use client";
 
 import { useProjectStore } from "@/frontend/stores/use-project-store";
-import { FileText } from "lucide-react";
+
 import ReactMarkdown from "react-markdown";
 
 export function ProjectOverview() {
@@ -10,8 +10,7 @@ export function ProjectOverview() {
   return (
     <div className="h-full flex flex-col bg-[var(--background)] border-l border-[var(--border)]">
       {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--border)]">
-        <FileText className="w-4 h-4 text-[var(--accent)]" />
+      <div className="flex items-center px-4 py-3 border-b border-[var(--border)]">
         <h2 className="text-sm font-semibold text-[var(--foreground)]">
           Project Overview
         </h2>

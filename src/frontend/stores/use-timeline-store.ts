@@ -37,6 +37,7 @@ interface TimelineState {
   addClip: (trackId: string, clip: Clip) => void;
   addTrack: (type: "video" | "audio") => void;
   removeTrack: (trackId: string) => void;
+  setTracks: (tracks: Track[]) => void;
 }
 
 const MIN_DURATION = 0.1;
@@ -191,4 +192,6 @@ export const useTimelineStore = create<TimelineState>()((set) => ({
     set((s) => ({
       tracks: s.tracks.filter((t) => t.id !== trackId),
     })),
+
+  setTracks: (tracks) => set({ tracks }),
 }));

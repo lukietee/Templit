@@ -5,9 +5,10 @@ import {
   useChatStore,
   type ChatMessage,
   type CharacterGroup,
+  type ChatVideo,
   type SceneImage,
 } from "@/frontend/stores/use-chat-store";
-import { MessageSquare, Send, Loader2, Plus, X } from "lucide-react";
+import { ArrowUp, Plus, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/frontend/lib/utils";
 
@@ -23,7 +24,7 @@ function CharacterGrid({
       <p className="text-sm font-semibold text-[var(--foreground)] mb-2 px-1">
         {group.name}
       </p>
-      <div className="grid grid-cols-2 gap-1.5">
+      <div className="grid grid-cols-4 gap-1">
         {group.images.map((img, i) => {
           const src = `data:${img.mimeType};base64,${img.data}`;
           return (
@@ -72,6 +73,20 @@ function SceneGrid({
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function VideoPlayer({ video }: { video: ChatVideo }) {
+  const src = `data:${video.mimeType};base64,${video.data}`;
+  return (
+    <div className="mt-3">
+      <video
+        src={src}
+        controls
+        playsInline
+        className="w-full aspect-video rounded-md border border-[var(--border)]"
+      />
     </div>
   );
 }
@@ -203,31 +218,35 @@ export function ChatPlaceholder() {
   return (
     <div className="flex flex-col h-full bg-white">
       {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--border)]">
-        <MessageSquare className="w-4 h-4 text-[var(--accent)]" />
+      <div className="flex items-center px-4 py-3 border-b border-[var(--border)]">
         <span className="text-sm font-semibold">Chat</span>
       </div>
 
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
-        {messages.map((msg) => (
+        {messages.map((msg) => {
+          const isLastMsg = msg === messages[messages.length - 1];
+          const isThinking = msg.role === "assistant" && !msg.characterGroups?.length && !msg.sceneImages && !msg.video && isLoading && isLastMsg;
+          const isGenerating = msg.role === "assistant" && (msg.characterGroups?.length ?? 0) > 0 && isLoading && isLastMsg;
+          return (
           <div
             key={msg.id}
             className={cn(
-              "text-sm rounded-lg px-3 py-2 max-w-[90%]",
-              msg.role === "assistant"
-                ? "bg-[var(--muted)] text-[var(--foreground)]"
-                : "bg-[var(--accent)] text-white ml-auto"
+              "text-sm max-w-[90%]",
+              isThinking
+                ? ""
+                : msg.role === "assistant"
+                  ? "rounded-lg px-3 py-2 bg-[var(--muted)] text-[var(--foreground)]"
+                  : "rounded-lg px-3 py-2 bg-blue-600 text-white ml-auto"
             )}
           >
-            {msg.role === "assistant" && msg.content === "" && !msg.characterGroups && !msg.sceneImages ? (
-              <span className="flex items-center gap-2 text-[var(--muted-foreground)]">
-                <Loader2 className="w-3 h-3 animate-spin" />
-                Thinking...
+            {isThinking ? (
+              <span className="shimmer-text text-sm font-medium">
+                {msg.content || "Thinking..."}
               </span>
             ) : msg.role === "assistant" ? (
               <>
-                {msg.content && (
+                {msg.content && !isGenerating && (
                   <ReactMarkdown
                     components={{
                       p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
@@ -246,9 +265,15 @@ export function ChatPlaceholder() {
                 {msg.characterGroups?.map((group, i) => (
                   <CharacterGrid key={i} group={group} onImageClick={setLightboxSrc} />
                 ))}
+                {isGenerating && (
+                  <span className="shimmer-text text-sm font-medium mt-2 block">
+                    {msg.content || "Generating..."}
+                  </span>
+                )}
                 {msg.sceneImages && msg.sceneImages.length > 0 && (
                   <SceneGrid scenes={msg.sceneImages} onImageClick={setLightboxSrc} />
                 )}
+                {msg.video && <VideoPlayer video={msg.video} />}
               </>
             ) : (
               <>
@@ -257,7 +282,8 @@ export function ChatPlaceholder() {
               </>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Lightbox */}
@@ -366,13 +392,13 @@ export function ChatPlaceholder() {
               onClick={handleSend}
               disabled={isLoading || !hasContent}
               className={cn(
-                "p-1.5 rounded-lg bg-[var(--accent)] text-white",
+                "p-1.5 rounded-lg bg-blue-600 text-white",
                 isLoading || !hasContent
                   ? "opacity-50 cursor-not-allowed"
                   : "hover:opacity-90"
               )}
             >
-              <Send className="w-4 h-4" />
+              <ArrowUp className="w-4 h-4" />
             </button>
           </div>
         </div>

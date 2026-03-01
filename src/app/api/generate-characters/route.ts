@@ -33,13 +33,12 @@ function isCartoonStyle(style: string): boolean {
   return CARTOON_KEYWORDS.some((kw) => lower.includes(kw));
 }
 
-async function generateCharacterViews(
+async function generateSingleView(
   image: UploadedImage,
-  index: number,
+  view: string,
+  name: string,
   artisticStyle: string
-): Promise<CharacterGroup> {
-  const name = image.name?.replace(/\.[^.]+$/, "") || `Character ${index + 1}`;
-
+): Promise<CharacterView | null> {
   const styleInstruction = isCartoonStyle(artisticStyle)
     ? `Use the following artistic style: ${artisticStyle}`
     : `IMPORTANT: Generate PHOTOREALISTIC images that look like real photographs. Do NOT use cartoon, illustrated, or stylized rendering. The output must look like actual photos of a real person.`;
@@ -59,17 +58,17 @@ async function generateCharacterViews(
                 },
               },
               {
-                text: `You are a character design assistant. Given this reference photo of a person/character, generate 4 separate images showing the character from these exact angles: front view, back view, right side view, and left side view.
+                text: `You are a character design assistant. Given this reference photo of a person/character, generate a single image showing the character from the ${view} angle.
 
 ${styleInstruction}
 
 Requirements:
-- Each image should show the FULL character on a plain WHITE background with NO other elements
-- Do NOT add any text, labels, captions, watermarks, or annotations onto the images. The images must contain ONLY the character on white — absolutely no words or letters
-- Maintain consistent appearance (clothing, hair, proportions) across all views
+- The image should show the FULL character on a plain WHITE background with NO other elements
+- Do NOT add any text, labels, captions, watermarks, or annotations onto the image. The image must contain ONLY the character on white — absolutely no words or letters
+- Maintain the character's appearance (clothing, hair, proportions) exactly as in the reference
 - The character should be standing in a neutral pose
-- The images must match the person's real appearance as closely as possible
-- Generate all 4 views as separate images in order: front, back, right side, left side`,
+- The image must match the person's real appearance as closely as possible
+- Generate exactly ONE image showing the ${view} view only`,
               },
             ],
           },
@@ -80,41 +79,51 @@ Requirements:
         },
       });
 
-      const images: CharacterView[] = [];
-      let viewIndex = 0;
-
-      if (response.candidates?.[0]?.content?.parts) {
-        for (const part of response.candidates[0].content.parts) {
-          if (part.inlineData && viewIndex < VIEWS.length) {
-            images.push({
-              data: part.inlineData.data!,
-              mimeType: part.inlineData.mimeType!,
-              label: VIEWS[viewIndex],
-            });
-            viewIndex++;
-          }
-        }
-      }
-
-      // If we got at least 1 image, consider it a success
-      if (images.length > 0) {
-        return { name, images };
+      const part = response.candidates?.[0]?.content?.parts?.find(
+        (p) => p.inlineData
+      );
+      if (part?.inlineData) {
+        return {
+          data: part.inlineData.data!,
+          mimeType: part.inlineData.mimeType!,
+          label: view,
+        };
       }
 
       console.warn(
-        `Attempt ${attempt}/${MAX_RETRIES} for "${name}" returned 0 images, retrying...`
+        `Attempt ${attempt}/${MAX_RETRIES} for "${name}" (${view}) returned no image, retrying...`
       );
     } catch (err) {
       console.warn(
-        `Attempt ${attempt}/${MAX_RETRIES} for "${name}" failed:`,
+        `Attempt ${attempt}/${MAX_RETRIES} for "${name}" (${view}) failed:`,
         err
       );
-      if (attempt === MAX_RETRIES) throw err;
+      if (attempt === MAX_RETRIES) return null;
     }
   }
 
-  // All retries exhausted with no images
-  return { name, images: [] };
+  return null;
+}
+
+async function generateCharacterViews(
+  image: UploadedImage,
+  index: number,
+  artisticStyle: string
+): Promise<CharacterGroup> {
+  const name = image.name?.replace(/\.[^.]+$/, "") || `Character ${index + 1}`;
+
+  const results = await Promise.allSettled(
+    VIEWS.map((view) => generateSingleView(image, view, name, artisticStyle))
+  );
+
+  const images = results
+    .filter(
+      (r): r is PromiseFulfilledResult<CharacterView> =>
+        r.status === "fulfilled" && r.value !== null
+    )
+    .map((r) => r.value);
+
+  return { name, images };
 }
 
 export async function POST(req: Request) {

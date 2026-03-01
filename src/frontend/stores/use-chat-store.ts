@@ -1,10 +1,17 @@
 import { create } from "zustand";
 import { useProjectStore } from "./use-project-store";
+import { usePlaybackStore } from "./use-playback-store";
+import { useTimelineStore, type Track } from "./use-timeline-store";
 
 export interface ChatImage {
   data: string; // base64
   mimeType: string;
   label?: string;
+}
+
+export interface ChatVideo {
+  data: string; // base64
+  mimeType: string;
 }
 
 export interface CharacterGroup {
@@ -25,6 +32,7 @@ export interface ChatMessage {
   images?: ChatImage[];
   characterGroups?: CharacterGroup[];
   sceneImages?: SceneImage[];
+  video?: ChatVideo;
 }
 
 function fileToBase64(file: File): Promise<{ data: string; mimeType: string }> {
@@ -54,11 +62,29 @@ function parseScenesFromOverview(overview: string) {
   return scenes;
 }
 
+/** Parse dialogue from the Dialogue section of the project overview */
+function parseDialogueFromOverview(overview: string) {
+  const dialogueMatch = overview.match(/## Dialogue\n([\s\S]*?)(?=\n## |$)/);
+  const dialogueText = dialogueMatch?.[1]?.trim() || "";
+  const dialogueRegex = /\*\*(.+?)\*\*.*?(?:\u2014|--|-)\s*(.*?)(?=\n- \*\*|$)/g;
+  const dialogues: { title: string; dialogue: string }[] = [];
+  let match;
+  while ((match = dialogueRegex.exec(dialogueText)) !== null) {
+    const dialogue = match[2].trim();
+    if (dialogue && !dialogue.includes("No dialogue")) {
+      dialogues.push({ title: match[1].trim(), dialogue });
+    }
+  }
+  return dialogues;
+}
+
 /** Build chat history with context annotations for generated images */
 function buildHistory(messages: ChatMessage[]) {
   return messages.map((m) => {
     let content = m.content;
-    if (m.sceneImages) {
+    if (m.video) {
+      content += "\n\n[Final video was generated and displayed successfully]";
+    } else if (m.sceneImages) {
       content += "\n\n[Scene images were generated successfully for: " +
         m.sceneImages.map((s) => s.title).join(", ") + "]";
     } else if (m.characterGroups) {
@@ -67,6 +93,26 @@ function buildHistory(messages: ChatMessage[]) {
     }
     return { role: m.role, content };
   });
+}
+
+/** All hidden markers that trigger pipeline steps */
+const HIDDEN_MARKERS = [
+  "<!--GENERATE_SCENES-->",
+  "<!--GENERATE_SCENE_THUMBNAILS-->",
+  "<!--GENERATE_VIDEO-->",
+];
+
+/** Strip all hidden markers and AI-parroted context annotations from displayed text */
+function stripMarkers(text: string): string {
+  let result = text;
+  for (const marker of HIDDEN_MARKERS) {
+    result = result.replaceAll(marker, "");
+  }
+  // Strip context annotations that buildHistory adds and the AI parrots back
+  result = result.replace(/\[Scene images were generated successfully for:[^\]]*\]/g, "");
+  result = result.replace(/\[Character sheets were generated successfully for:[^\]]*\]/g, "");
+  result = result.replace(/\[Final video was generated and displayed successfully\]/g, "");
+  return result.trimEnd();
 }
 
 /** Stream a chat API response into the last assistant message, parse PROJECT_MD */
@@ -93,15 +139,17 @@ async function streamChatResponse(
     const { done, value } = await reader.read();
     if (done) break;
     accumulated += decoder.decode(value, { stream: true });
-    updateLastMessage(accumulated);
+    updateLastMessage(stripMarkers(accumulated));
   }
 
   const projectMatch = accumulated.match(/<!--PROJECT_MD:([^]*?)-->/);
   if (projectMatch) {
     useProjectStore.getState().setOverview(projectMatch[1].trim());
     accumulated = accumulated.replace(/<!--PROJECT_MD:[^]*?-->/, "").trimEnd();
-    updateLastMessage(accumulated);
   }
+
+  accumulated = stripMarkers(accumulated);
+  updateLastMessage(accumulated);
 
   return accumulated;
 }
@@ -114,16 +162,17 @@ interface ChatState {
   addMessage: (
     role: "user" | "assistant",
     content: string,
-    extra?: Partial<Pick<ChatMessage, "images" | "characterGroups" | "sceneImages">>
+    extra?: Partial<Pick<ChatMessage, "images" | "characterGroups" | "sceneImages" | "video">>
   ) => void;
   updateLastMessage: (
     content: string,
-    extra?: Partial<Pick<ChatMessage, "characterGroups" | "sceneImages">>
+    extra?: Partial<Pick<ChatMessage, "characterGroups" | "sceneImages" | "video">>
   ) => void;
   sendMessage: (content: string) => Promise<void>;
   sendMessageWithImages: (content: string, files: File[]) => Promise<void>;
   generateSceneLocations: () => Promise<void>;
   generateSceneWithCharacters: () => Promise<void>;
+  generateFinalVideo: () => Promise<void>;
   initializeWithPrompt: (prompt: string) => void;
   setCurrentStep: (step: number) => void;
 }
@@ -188,7 +237,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         const { done, value } = await reader.read();
         if (done) break;
         accumulated += decoder.decode(value, { stream: true });
-        updateLastMessage(accumulated);
+        updateLastMessage(stripMarkers(accumulated));
       }
 
       // Parse hidden PROJECT_MD block from assistant response
@@ -197,27 +246,55 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       );
       if (projectMatch) {
         useProjectStore.getState().setOverview(projectMatch[1].trim());
-        // Strip the block from the displayed message
         accumulated = accumulated.replace(/<!--PROJECT_MD:[^]*?-->/, "").trimEnd();
-        updateLastMessage(accumulated);
       }
 
-      // Check for scene location generation trigger (Phase 1)
-      if (accumulated.includes("<!--GENERATE_SCENES-->")) {
-        const cleaned = accumulated.replace(/<!--GENERATE_SCENES-->/, "").trimEnd();
-        updateLastMessage(cleaned);
+      // Check for pipeline triggers before stripping markers
+      const hasScenesTrigger = accumulated.includes("<!--GENERATE_SCENES-->");
+      const hasThumbnailsTrigger = accumulated.includes("<!--GENERATE_SCENE_THUMBNAILS-->");
+      const hasVideoTrigger = accumulated.includes("<!--GENERATE_VIDEO-->");
+
+      // Strip all markers from displayed text
+      accumulated = stripMarkers(accumulated);
+      updateLastMessage(accumulated);
+
+      // Trigger pipeline steps
+      if (hasScenesTrigger) {
         set({ isLoading: false });
         await get().generateSceneLocations();
         return;
       }
 
-      // Check for scene thumbnail generation trigger (Phase 2)
-      if (accumulated.includes("<!--GENERATE_SCENE_THUMBNAILS-->")) {
-        const cleaned = accumulated.replace(/<!--GENERATE_SCENE_THUMBNAILS-->/, "").trimEnd();
-        updateLastMessage(cleaned);
+      if (hasThumbnailsTrigger) {
         set({ isLoading: false });
         await get().generateSceneWithCharacters();
         return;
+      }
+
+      if (hasVideoTrigger) {
+        set({ isLoading: false });
+        await get().generateFinalVideo();
+        return;
+      }
+
+      // Fallback: detect pipeline transitions from the AI's response text
+      // when the AI forgets to include hidden markers
+      if (!hasScenesTrigger && !hasThumbnailsTrigger && !hasVideoTrigger) {
+        const overview = useProjectStore.getState().overview || "";
+        const lower = accumulated.toLowerCase();
+
+        // Dialogue was just resolved → should generate scene locations
+        const hasScript = overview.includes("## Script");
+        const dialogueResolved =
+          lower.includes("locking in your dialogue") ||
+          lower.includes("keeping it purely visual") ||
+          lower.includes("locked in your dialogue") ||
+          lower.includes("dialogue is locked");
+        if (hasScript && dialogueResolved) {
+          set({ isLoading: false });
+          await get().generateSceneLocations();
+          return;
+        }
       }
     } catch {
       updateLastMessage("Sorry, something went wrong. Please try again.");
@@ -251,61 +328,61 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     const styleMatch = overview.match(/## Artistic Style\n([^\n#]+)/);
     const artisticStyle = styleMatch?.[1]?.trim() || "";
 
-    const attemptGeneration = async (): Promise<CharacterGroup[]> => {
-      const res = await fetch("/api/generate-characters", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          images: images.map((img) => ({
-            data: img.data,
-            mimeType: img.mimeType,
-            name: img.label,
-          })),
-          message: content,
-          artisticStyle,
-        }),
-      });
-
-      if (!res.ok) {
-        const body = await res.text().catch(() => "");
-        throw new Error(`API error ${res.status}: ${body}`);
-      }
-
-      const { characters } = (await res.json()) as {
-        characters: CharacterGroup[];
-      };
-      return characters;
-    };
-
-    try {
-      updateLastMessage("Generating character sheets...");
-
-      // Retry up to 2 times on the client side (server also retries internally)
-      let characters: CharacterGroup[] | null = null;
-      let lastError: unknown;
+    const fetchSingleCharacter = async (img: ChatImage): Promise<CharacterGroup | null> => {
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
-          characters = await attemptGeneration();
-          break;
+          const res = await fetch("/api/generate-characters", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              images: [{ data: img.data, mimeType: img.mimeType, name: img.label }],
+              message: content,
+              artisticStyle,
+            }),
+          });
+          if (!res.ok) {
+            const body = await res.text().catch(() => "");
+            throw new Error(`API error ${res.status}: ${body}`);
+          }
+          const { characters } = (await res.json()) as { characters: CharacterGroup[] };
+          return characters[0] ?? null;
         } catch (err) {
-          lastError = err;
-          if (attempt === 0) {
-            updateLastMessage("First attempt didn't work, retrying...");
+          if (attempt === 1) {
+            console.warn(`Failed to generate character for "${img.label}":`, err);
+            return null;
           }
         }
       }
+      return null;
+    };
 
-      if (!characters) {
-        throw lastError ?? new Error("Generation failed");
-      }
+    try {
+      updateLastMessage("Generating character sheets...", { characterGroups: [] });
 
-      // Update assistant message with character groups
-      updateLastMessage(
-        "Here are your character sheets! Each character is shown from four angles \u2014 front, back, right, and left.",
-        { characterGroups: characters }
+      // Fire off all character generations in parallel, update UI as each completes
+      const completed: CharacterGroup[] = [];
+
+      await Promise.all(
+        images.map(async (img) => {
+          const character = await fetchSingleCharacter(img);
+          if (character) {
+            completed.push(character);
+            get().updateLastMessage(
+              `Generating character sheets (${completed.length}/${images.length})...`,
+              { characterGroups: [...completed] }
+            );
+          }
+        })
       );
 
-      // Now send a follow-up to the chat API so the agent can acknowledge and move on
+      if (completed.length === 0) {
+        throw new Error("All character generations failed");
+      }
+
+      // Set final message
+      updateLastMessage("Here are your character sheets!", { characterGroups: completed });
+
+      // Send a follow-up to the chat API so the agent can acknowledge and move on
       await streamChatResponse(addMessage, updateLastMessage, get().messages);
     } catch {
       updateLastMessage("Sorry, something went wrong generating character sheets. Please try again.");
@@ -377,10 +454,8 @@ export const useChatStore = create<ChatState>()((set, get) => ({
           image: { data: r.image!.data, mimeType: r.image!.mimeType },
         }));
 
-      updateLastMessage(
-        "Here are your scene locations!",
-        { sceneImages }
-      );
+      // Set sceneImages on placeholder with a label
+      updateLastMessage("Here are your scene locations!", { sceneImages });
 
       await streamChatResponse(addMessage, updateLastMessage, get().messages);
     } catch {
@@ -494,14 +569,151 @@ export const useChatStore = create<ChatState>()((set, get) => ({
           image: { data: r.image!.data, mimeType: r.image!.mimeType },
         }));
 
-      updateLastMessage(
-        "Here are your scene thumbnails with characters!",
-        { sceneImages }
-      );
+      // Set sceneImages on placeholder with a label
+      updateLastMessage("Here are your scene thumbnails with characters!", { sceneImages });
 
       await streamChatResponse(addMessage, updateLastMessage, get().messages);
     } catch {
       updateLastMessage("Sorry, something went wrong generating scene thumbnails. Please try again.");
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  // Step 6: Generate final video using Veo 3.1
+  generateFinalVideo: async () => {
+    const { addMessage, updateLastMessage } = get();
+
+    const overview = useProjectStore.getState().overview || "";
+    const styleMatch = overview.match(/## Artistic Style\n([^\n#]+)/);
+    const artisticStyle = styleMatch?.[1]?.trim() || "";
+
+    const arMatch = overview.match(/## Aspect Ratio\n([^\n#]+)/);
+    const aspectRatio = arMatch?.[1]?.trim() || "16:9";
+
+    const scenes = parseScenesFromOverview(overview);
+    if (scenes.length === 0) return;
+
+    const dialogues = parseDialogueFromOverview(overview);
+
+    // Collect the latest scene thumbnail images from chat messages
+    const msgs = get().messages;
+    let latestSceneImages: SceneImage[] = [];
+    for (const m of msgs) {
+      if (m.sceneImages && m.sceneImages.length > 0) {
+        latestSceneImages = m.sceneImages;
+      }
+    }
+
+    if (latestSceneImages.length === 0) return;
+
+    // Build scene payloads by matching scenes with their thumbnails and dialogue
+    const scenePayloads = scenes.map((scene) => {
+      const matchingImage = latestSceneImages.find(
+        (si) => si.title === scene.title
+      ) || latestSceneImages[scenes.indexOf(scene)];
+
+      const matchingDialogue = dialogues.find(
+        (d) => d.title === scene.title
+      );
+
+      return {
+        title: scene.title,
+        description: scene.description,
+        dialogue: matchingDialogue?.dialogue,
+        image: matchingImage
+          ? { data: matchingImage.image.data, mimeType: matchingImage.image.mimeType }
+          : { data: "", mimeType: "image/png" },
+      };
+    }).filter((s) => s.image.data);
+
+    addMessage("assistant", "");
+    set({ isLoading: true });
+
+    try {
+      updateLastMessage("Generating final video... This may take a few minutes.");
+
+      // Abort if the server doesn't respond within 5 minutes
+      const controller = new AbortController();
+      const fetchTimeout = setTimeout(() => controller.abort(), 10 * 60 * 1000);
+
+      let result: {
+        stitchedVideo: { data: string; mimeType: string };
+        sceneDuration: number;
+        sceneVideos: { title: string }[];
+      };
+      try {
+        const res = await fetch("/api/generate-video", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            scenes: scenePayloads,
+            artisticStyle,
+            aspectRatio,
+            sceneDuration: 5,
+          }),
+          signal: controller.signal,
+        });
+
+        if (!res.ok) {
+          const body = await res.text().catch(() => "");
+          throw new Error(`API error ${res.status}: ${body}`);
+        }
+
+        result = await res.json();
+      } finally {
+        clearTimeout(fetchTimeout);
+      }
+
+      // Use the stitched video for the chat preview and player
+      const video: ChatVideo = {
+        data: result.stitchedVideo.data,
+        mimeType: result.stitchedVideo.mimeType,
+      };
+      updateLastMessage("Here's your final video!", { video });
+
+      // Create blob URL and update playback store
+      const byteArray = Uint8Array.from(atob(result.stitchedVideo.data), (c) => c.charCodeAt(0));
+      const blob = new Blob([byteArray], { type: result.stitchedVideo.mimeType });
+      const blobUrl = URL.createObjectURL(blob);
+      usePlaybackStore.getState().setVideoSrc(blobUrl);
+
+      // Populate the timeline with scene clips using actual duration from API
+      const actualSceneDuration = result.sceneDuration;
+      const videoClips = result.sceneVideos.map((sv, i) => ({
+        id: `clip-v-${i}`,
+        sourceId: `scene-${i}`,
+        start: i * actualSceneDuration,
+        duration: actualSceneDuration,
+        originalStart: i * actualSceneDuration,
+        originalDuration: actualSceneDuration,
+        label: sv.title,
+      }));
+
+      const audioClips = result.sceneVideos.map((sv, i) => ({
+        id: `clip-a-${i}`,
+        sourceId: `scene-${i}`,
+        start: i * actualSceneDuration,
+        duration: actualSceneDuration,
+        originalStart: i * actualSceneDuration,
+        originalDuration: actualSceneDuration,
+        label: `${sv.title} Audio`,
+      }));
+
+      const tracks: Track[] = [
+        { id: "video-1", type: "video", label: "Video", clips: videoClips },
+        { id: "audio-1", type: "audio", label: "Audio", clips: audioClips },
+      ];
+      useTimelineStore.getState().setTracks(tracks);
+
+      // Stream follow-up response from the agent
+      await streamChatResponse(addMessage, updateLastMessage, get().messages);
+    } catch (err) {
+      console.error("Video generation failed:", err);
+      const detail = err instanceof Error ? err.message : "";
+      updateLastMessage(
+        `Sorry, something went wrong generating the video. Please try again.${detail ? `\n\nError: ${detail}` : ""}`
+      );
     } finally {
       set({ isLoading: false });
     }

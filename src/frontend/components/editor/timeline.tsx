@@ -7,7 +7,7 @@ import { useTimelineDrag } from "@/frontend/hooks/use-timeline-drag";
 import { TimelineRuler } from "./timeline-ruler";
 import { TimelineTrack } from "./timeline-track";
 import { TimelinePlayhead } from "./timeline-playhead";
-import { ZoomIn, ZoomOut, Download, Loader2, Plus, Film, Music } from "lucide-react";
+import { ZoomIn, ZoomOut, Download, Plus, Film, Music } from "lucide-react";
 
 interface TimelineProps {
   seekTo: (time: number) => void;
@@ -38,10 +38,9 @@ export function Timeline({ seekTo, onRender, isRendering, renderProgress }: Time
             title={isRendering ? "Rendering..." : "Export video"}
           >
             {isRendering ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <span className="shimmer-text font-medium">
                 {Math.round((renderProgress ?? 0) * 100)}%
-              </>
+              </span>
             ) : (
               <>
                 <Download className="w-3.5 h-3.5" />
