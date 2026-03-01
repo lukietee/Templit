@@ -16,13 +16,13 @@ export function EditorLayout() {
       {/* Main content */}
       <div className="flex-1 min-h-0">
         <Group orientation="horizontal">
-          <Panel defaultSize="25%" minSize="15%">
+          <Panel defaultSize="35%" minSize="15%">
             <ChatPlaceholder />
           </Panel>
 
           <Separator className="w-1.5 bg-[var(--border)] transition-colors cursor-col-resize" />
 
-          <Panel defaultSize="75%" minSize="40%">
+          <Panel defaultSize="65%" minSize="40%">
             <ProjectOverview />
           </Panel>
         </Group>
