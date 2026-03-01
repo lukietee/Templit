@@ -49,7 +49,7 @@ export function PromptBox() {
           onKeyDown={handleKeyDown}
           placeholder="Describe the video you want to create..."
           rows={3}
-          className="w-full resize-none bg-transparent text-slate-800 placeholder:text-slate-400 placeholder:font-mono font-mono outline-none text-sm leading-relaxed"
+          className="w-full resize-none bg-transparent text-slate-800 placeholder:text-slate-400 outline-none text-sm leading-relaxed"
         />
 
         <FileUpload
