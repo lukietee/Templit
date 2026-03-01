@@ -5,6 +5,7 @@ import {
   useChatStore,
   type ChatMessage,
   type CharacterGroup,
+  type SceneImage,
 } from "@/frontend/stores/use-chat-store";
 import { MessageSquare, Send, Loader2, Plus, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -42,6 +43,35 @@ function CharacterGrid({
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function SceneGrid({
+  scenes,
+  onImageClick,
+}: {
+  scenes: SceneImage[];
+  onImageClick: (src: string) => void;
+}) {
+  return (
+    <div className="mt-3 space-y-2">
+      {scenes.map((scene, i) => {
+        const src = `data:${scene.image.mimeType};base64,${scene.image.data}`;
+        return (
+          <div key={i} className="relative">
+            <img
+              src={src}
+              alt={scene.title}
+              className="w-full aspect-video object-cover rounded-md border border-[var(--border)] cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => onImageClick(src)}
+            />
+            <span className="absolute bottom-1.5 left-1.5 text-xs bg-black/60 text-white px-2 py-0.5 rounded">
+              {scene.title}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -190,7 +220,7 @@ export function ChatPlaceholder() {
                 : "bg-[var(--accent)] text-white ml-auto"
             )}
           >
-            {msg.role === "assistant" && msg.content === "" && !msg.characterGroups ? (
+            {msg.role === "assistant" && msg.content === "" && !msg.characterGroups && !msg.sceneImages ? (
               <span className="flex items-center gap-2 text-[var(--muted-foreground)]">
                 <Loader2 className="w-3 h-3 animate-spin" />
                 Thinking...
@@ -216,6 +246,9 @@ export function ChatPlaceholder() {
                 {msg.characterGroups?.map((group, i) => (
                   <CharacterGrid key={i} group={group} onImageClick={setLightboxSrc} />
                 ))}
+                {msg.sceneImages && msg.sceneImages.length > 0 && (
+                  <SceneGrid scenes={msg.sceneImages} onImageClick={setLightboxSrc} />
+                )}
               </>
             ) : (
               <>
