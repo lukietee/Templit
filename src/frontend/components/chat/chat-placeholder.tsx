@@ -91,6 +91,42 @@ function VideoPlayer({ video }: { video: ChatVideo }) {
   );
 }
 
+function NewMessageShine({
+  messageId,
+  seenRef,
+}: {
+  messageId: string;
+  seenRef: React.MutableRefObject<Set<string>>;
+}) {
+  const alreadySeen = seenRef.current.has(messageId);
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    seenRef.current.add(messageId);
+  }, [messageId, seenRef]);
+
+  if (alreadySeen || done) return null;
+
+  return (
+    <div
+      style={{
+        backgroundImage:
+          "radial-gradient(transparent, transparent, #ec4899, #8b5cf6, #3b82f6, transparent, transparent)",
+        backgroundSize: "300% 300%",
+        mask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+        WebkitMask:
+          "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+        WebkitMaskComposite: "xor",
+        maskComposite: "exclude",
+        padding: "1.5px",
+        animation: "shine-border 1.2s linear forwards",
+      }}
+      className="pointer-events-none absolute inset-0 rounded-[inherit]"
+      onAnimationEnd={() => setDone(true)}
+    />
+  );
+}
+
 function UserImageThumbnails({
   msg,
   onImageClick,
@@ -131,6 +167,7 @@ export function ChatPlaceholder() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const seenRef = useRef<Set<string>>(new Set());
 
   // Read landing page prompt from sessionStorage on mount
   useEffect(() => {
@@ -236,12 +273,15 @@ export function ChatPlaceholder() {
               isActiveLoading && !msg.characterGroups?.length && !msg.sceneImages && !msg.video
                 ? ""
                 : msg.role === "assistant"
-                  ? "rounded-lg px-3 py-2 bg-[var(--muted)] text-[var(--foreground)]"
+                  ? "relative overflow-hidden rounded-lg px-3 py-2 bg-[var(--muted)] text-[var(--foreground)]"
                   : "rounded-lg px-3 py-2 bg-blue-600 text-white ml-auto"
             )}
           >
             {msg.role === "assistant" ? (
               <>
+                {msg.content && !isActiveLoading && (
+                  <NewMessageShine messageId={msg.id} seenRef={seenRef} />
+                )}
                 {msg.content && !isActiveLoading && (
                   <ReactMarkdown
                     components={{
