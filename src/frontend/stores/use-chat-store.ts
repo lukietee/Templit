@@ -299,6 +299,38 @@ export const useChatStore = create<ChatState>()((set, get) => ({
           await get().generateSceneLocations();
           return;
         }
+
+        // Locations approved → should generate scene thumbnails with characters
+        const hasSceneLocations = overview.includes("## Scene Locations");
+        const noSceneThumbnails = !overview.includes("## Scene Thumbnails");
+        const locationApproved =
+          lower.includes("glad you like the locations") ||
+          lower.includes("locations look good") ||
+          lower.includes("locations look great") ||
+          lower.includes("scene thumbnails with characters") ||
+          lower.includes("generate the scene thumbnails") ||
+          lower.includes("generating scene thumbnails");
+        if (hasSceneLocations && noSceneThumbnails && locationApproved) {
+          set({ isLoading: false });
+          await get().generateSceneWithCharacters();
+          return;
+        }
+
+        // Scene thumbnails approved → should generate final video
+        const hasSceneThumbnails = overview.includes("## Scene Thumbnails");
+        const noFinalVideo = !overview.includes("## Final Video");
+        const thumbnailsApproved =
+          lower.includes("generate the final video") ||
+          lower.includes("generating the final video") ||
+          lower.includes("scenes look amazing") ||
+          lower.includes("scenes look great") ||
+          lower.includes("thumbnails look great") ||
+          lower.includes("thumbnails look good");
+        if (hasSceneThumbnails && noFinalVideo && thumbnailsApproved) {
+          set({ isLoading: false });
+          await get().generateFinalVideo();
+          return;
+        }
       }
     } catch {
       updateLastMessage("Sorry, something went wrong. Please try again.");
@@ -567,10 +599,16 @@ export const useChatStore = create<ChatState>()((set, get) => ({
           image: { data: r.image!.data, mimeType: r.image!.mimeType },
         }));
 
-      // Set sceneImages on placeholder with a label
-      updateLastMessage("Here are your scene thumbnails with characters!", { sceneImages });
-
-      await streamChatResponse(addMessage, updateLastMessage, get().messages);
+      if (sceneImages.length === 0) {
+        updateLastMessage("Sorry, the scene thumbnails failed to generate. Please try again.");
+      } else {
+        const failed = results.length - sceneImages.length;
+        const label = failed > 0
+          ? `Here are your scene thumbnails with characters! (${failed} scene${failed > 1 ? "s" : ""} failed to generate — you can try regenerating.)`
+          : "Here are your scene thumbnails with characters!";
+        updateLastMessage(label, { sceneImages });
+        await streamChatResponse(addMessage, updateLastMessage, get().messages);
+      }
     } catch {
       updateLastMessage("Sorry, something went wrong generating scene thumbnails. Please try again.");
     } finally {
