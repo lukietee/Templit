@@ -20,6 +20,13 @@ interface CharacterGroup {
 }
 
 const VIEWS = ["front", "back", "right side", "left side"] as const;
+
+const VIEW_DESCRIPTIONS: Record<string, string> = {
+  front: "facing directly toward the camera, showing their face and the front of their body",
+  back: "facing directly away from the camera, showing the back of their head and body. Their face should NOT be visible",
+  "right side": "turned 90 degrees so the camera sees their right profile. Only the right side of their face and body should be visible",
+  "left side": "turned 90 degrees so the camera sees their left profile. Only the left side of their face and body should be visible",
+};
 const MAX_RETRIES = 3;
 
 const CARTOON_KEYWORDS = [
@@ -58,7 +65,9 @@ async function generateSingleView(
                 },
               },
               {
-                text: `You are a character design assistant. Given this reference photo of a person/character, generate a single image showing the character from the ${view} angle.
+                text: `You are a character design assistant. Given this reference photo of a person/character, generate a single image showing the character from the ${view} view.
+
+THE CAMERA ANGLE IS CRITICAL: The character must be ${VIEW_DESCRIPTIONS[view]}. This is a ${view} view — get the angle exactly right.
 
 ${styleInstruction}
 
@@ -68,7 +77,7 @@ Requirements:
 - Maintain the character's appearance (clothing, hair, proportions) exactly as in the reference
 - The character should be standing in a neutral pose
 - The image must match the person's real appearance as closely as possible
-- Generate exactly ONE image showing the ${view} view only`,
+- Generate exactly ONE image showing ONLY the ${view} view`,
               },
             ],
           },
