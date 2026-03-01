@@ -56,7 +56,7 @@ function SceneGrid({
   onImageClick: (src: string) => void;
 }) {
   return (
-    <div className="mt-3 space-y-2">
+    <div className="mt-3 grid grid-cols-3 gap-1">
       {scenes.map((scene, i) => {
         const src = `data:${scene.image.mimeType};base64,${scene.image.data}`;
         return (
@@ -67,7 +67,7 @@ function SceneGrid({
               className="w-full aspect-video object-cover rounded-md border border-[var(--border)] cursor-pointer hover:opacity-80 transition-opacity"
               onClick={() => onImageClick(src)}
             />
-            <span className="absolute bottom-1.5 left-1.5 text-xs bg-black/60 text-white px-2 py-0.5 rounded">
+            <span className="absolute bottom-1 left-1 text-[10px] bg-black/60 text-white px-1.5 py-0.5 rounded">
               {scene.title}
             </span>
           </div>
