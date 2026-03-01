@@ -120,6 +120,7 @@ function UserImageThumbnails({
 export function ChatPlaceholder() {
   const messages = useChatStore((s) => s.messages);
   const isLoading = useChatStore((s) => s.isLoading);
+  const loadingMessage = useChatStore((s) => s.loadingMessage);
   const sendMessage = useChatStore((s) => s.sendMessage);
   const sendMessageWithImages = useChatStore((s) => s.sendMessageWithImages);
   const [input, setInput] = useState("");
@@ -226,27 +227,22 @@ export function ChatPlaceholder() {
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.map((msg) => {
           const isLastMsg = msg === messages[messages.length - 1];
-          const isThinking = msg.role === "assistant" && !msg.characterGroups?.length && !msg.sceneImages && !msg.video && isLoading && isLastMsg;
-          const isGenerating = msg.role === "assistant" && (msg.characterGroups?.length ?? 0) > 0 && isLoading && isLastMsg;
+          const isActiveLoading = msg.role === "assistant" && isLoading && isLastMsg;
           return (
           <div
             key={msg.id}
             className={cn(
               "text-sm max-w-[90%]",
-              isThinking
+              isActiveLoading && !msg.characterGroups?.length && !msg.sceneImages && !msg.video
                 ? ""
                 : msg.role === "assistant"
                   ? "rounded-lg px-3 py-2 bg-[var(--muted)] text-[var(--foreground)]"
                   : "rounded-lg px-3 py-2 bg-blue-600 text-white ml-auto"
             )}
           >
-            {isThinking ? (
-              <span className="shimmer-text text-sm font-medium">
-                {msg.content || "Thinking..."}
-              </span>
-            ) : msg.role === "assistant" ? (
+            {msg.role === "assistant" ? (
               <>
-                {msg.content && !isGenerating && (
+                {msg.content && !isActiveLoading && (
                   <ReactMarkdown
                     components={{
                       p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
@@ -265,15 +261,15 @@ export function ChatPlaceholder() {
                 {msg.characterGroups?.map((group, i) => (
                   <CharacterGrid key={i} group={group} onImageClick={setLightboxSrc} />
                 ))}
-                {isGenerating && (
-                  <span className="shimmer-text text-sm font-medium mt-2 block">
-                    {msg.content || "Generating..."}
-                  </span>
-                )}
                 {msg.sceneImages && msg.sceneImages.length > 0 && (
                   <SceneGrid scenes={msg.sceneImages} onImageClick={setLightboxSrc} />
                 )}
                 {msg.video && <VideoPlayer video={msg.video} />}
+                {isActiveLoading && (
+                  <span className="shimmer-text text-sm font-medium mt-2 block">
+                    {loadingMessage}
+                  </span>
+                )}
               </>
             ) : (
               <>

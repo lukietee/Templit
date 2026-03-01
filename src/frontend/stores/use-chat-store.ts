@@ -121,6 +121,8 @@ async function streamChatResponse(
   updateLastMessage: ChatState["updateLastMessage"],
   messages: ChatMessage[]
 ) {
+  useChatStore.setState({ loadingMessage: "Thinking..." });
+
   const history = buildHistory(messages);
   const chatRes = await fetch("/api/chat", {
     method: "POST",
@@ -135,11 +137,11 @@ async function streamChatResponse(
   const decoder = new TextDecoder();
   let accumulated = "";
 
+  // Stream silently — don't render intermediate text
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
     accumulated += decoder.decode(value, { stream: true });
-    updateLastMessage(stripMarkers(accumulated));
   }
 
   const projectMatch = accumulated.match(/<!--PROJECT_MD:([^]*?)-->/);
@@ -157,6 +159,7 @@ async function streamChatResponse(
 interface ChatState {
   messages: ChatMessage[];
   isLoading: boolean;
+  loadingMessage: string;
   currentStep: number;
   initialized: boolean;
   addMessage: (
@@ -180,6 +183,7 @@ interface ChatState {
 export const useChatStore = create<ChatState>()((set, get) => ({
   messages: [],
   isLoading: false,
+  loadingMessage: "Thinking...",
   currentStep: 1,
   initialized: false,
 
@@ -213,7 +217,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     addMessage("user", content);
     // Add empty assistant placeholder
     addMessage("assistant", "");
-    set({ isLoading: true });
+    set({ isLoading: true, loadingMessage: "Thinking..." });
 
     try {
       // Build history from all messages except the empty placeholder
@@ -229,6 +233,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         throw new Error(`API error: ${res.status}`);
       }
 
+      // Stream silently — don't render intermediate text into the chat bubble
       const reader = res.body!.getReader();
       const decoder = new TextDecoder();
       let accumulated = "";
@@ -237,7 +242,6 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         const { done, value } = await reader.read();
         if (done) break;
         accumulated += decoder.decode(value, { stream: true });
-        updateLastMessage(stripMarkers(accumulated));
       }
 
       // Parse hidden PROJECT_MD block from assistant response
@@ -254,7 +258,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       const hasThumbnailsTrigger = accumulated.includes("<!--GENERATE_SCENE_THUMBNAILS-->");
       const hasVideoTrigger = accumulated.includes("<!--GENERATE_VIDEO-->");
 
-      // Strip all markers from displayed text
+      // Strip all markers from displayed text and set final message
       accumulated = stripMarkers(accumulated);
       updateLastMessage(accumulated);
 
@@ -321,7 +325,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
 
     // Add empty assistant placeholder
     addMessage("assistant", "");
-    set({ isLoading: true });
+    set({ isLoading: true, loadingMessage: "Generating character sheets..." });
 
     // Extract artistic style from project overview if available
     const overview = useProjectStore.getState().overview || "";
@@ -357,7 +361,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     };
 
     try {
-      updateLastMessage("Generating character sheets...", { characterGroups: [] });
+      updateLastMessage("", { characterGroups: [] });
 
       // Fire off all character generations in parallel, update UI as each completes
       const completed: CharacterGroup[] = [];
@@ -367,10 +371,8 @@ export const useChatStore = create<ChatState>()((set, get) => ({
           const character = await fetchSingleCharacter(img);
           if (character) {
             completed.push(character);
-            get().updateLastMessage(
-              `Generating character sheets (${completed.length}/${images.length})...`,
-              { characterGroups: [...completed] }
-            );
+            set({ loadingMessage: `Generating character sheets (${completed.length}/${images.length})...` });
+            get().updateLastMessage("", { characterGroups: [...completed] });
           }
         })
       );
@@ -406,7 +408,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     if (scenes.length === 0) return;
 
     addMessage("assistant", "");
-    set({ isLoading: true });
+    set({ isLoading: true, loadingMessage: "Generating scene locations..." });
 
     const attemptGeneration = async () => {
       const res = await fetch("/api/generate-scenes", {
@@ -427,8 +429,6 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     };
 
     try {
-      updateLastMessage("Generating scene locations...");
-
       let results: { title: string; image: { data: string; mimeType: string } | null }[] | null = null;
       let lastError: unknown;
       for (let attempt = 0; attempt < 2; attempt++) {
@@ -438,7 +438,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         } catch (err) {
           lastError = err;
           if (attempt === 0) {
-            updateLastMessage("First attempt didn't work, retrying scene location generation...");
+            set({ loadingMessage: "Retrying scene location generation..." });
           }
         }
       }
@@ -514,7 +514,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     }
 
     addMessage("assistant", "");
-    set({ isLoading: true });
+    set({ isLoading: true, loadingMessage: "Generating scene thumbnails..." });
 
     const attemptGeneration = async () => {
       const res = await fetch("/api/generate-scene-thumbnails", {
@@ -542,8 +542,6 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     };
 
     try {
-      updateLastMessage("Generating scene thumbnails with characters...");
-
       let results: { title: string; image: { data: string; mimeType: string } | null }[] | null = null;
       let lastError: unknown;
       for (let attempt = 0; attempt < 2; attempt++) {
@@ -553,7 +551,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         } catch (err) {
           lastError = err;
           if (attempt === 0) {
-            updateLastMessage("First attempt didn't work, retrying scene thumbnail generation...");
+            set({ loadingMessage: "Retrying scene thumbnail generation..." });
           }
         }
       }
@@ -628,11 +626,9 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     }).filter((s) => s.image.data);
 
     addMessage("assistant", "");
-    set({ isLoading: true });
+    set({ isLoading: true, loadingMessage: "Generating final video..." });
 
     try {
-      updateLastMessage("Generating final video... This may take a few minutes.");
-
       // Abort if the server doesn't respond within 5 minutes
       const controller = new AbortController();
       const fetchTimeout = setTimeout(() => controller.abort(), 10 * 60 * 1000);
