@@ -415,6 +415,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
 
       // Set final message
       updateLastMessage("Here are your character sheets!", { characterGroups: completed });
+      useProjectStore.getState().setCharacterImages(completed);
 
       // Send a follow-up to the chat API so the agent can acknowledge and move on
       await streamChatResponse(addMessage, updateLastMessage, get().messages);
@@ -488,6 +489,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
 
       // Set sceneImages on placeholder with a label
       updateLastMessage("Here are your scene locations!", { sceneImages });
+      useProjectStore.getState().setSceneLocationImages(sceneImages);
 
       await streamChatResponse(addMessage, updateLastMessage, get().messages);
     } catch {
@@ -607,6 +609,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
           ? `Here are your scene thumbnails with characters! (${failed} scene${failed > 1 ? "s" : ""} failed to generate — you can try regenerating.)`
           : "Here are your scene thumbnails with characters!";
         updateLastMessage(label, { sceneImages });
+        useProjectStore.getState().setSceneThumbnailImages(sceneImages);
         await streamChatResponse(addMessage, updateLastMessage, get().messages);
       }
     } catch {
