@@ -1,0 +1,48 @@
+# Templit
+
+Templit is an AI-powered video editing platform — think Cursor, but for video. An AI agent guides you through the entire video creation process in a conversational chat interface, from initial concept to a fully produced, stitched-together video.
+
+## How It Works
+
+Templit has two screens: a **landing page** where you enter your video idea, and the **editor** where the agent takes over.
+
+The editor is a three-panel layout:
+
+- **Chat panel** (left) — The AI agent lives here. It walks you through each step of the pipeline, asks for your input, and kicks off generation tasks behind the scenes.
+- **Preview panel** (top right) — Watch your video with full playback controls once it's generated.
+- **Timeline panel** (bottom right) — A multi-track timeline showing your video and audio clips, with a draggable playhead and zoom controls.
+
+### The Agent Pipeline
+
+The agent walks you through six steps, each with an approval gate where you can review, request changes, or approve before moving on:
+
+1. **Project Overview** — The agent collects your video's topic, duration, and aspect ratio.
+2. **Artistic Style** — The agent suggests four tailored visual styles based on your concept. Pick one or describe your own.
+3. **Character Generation** — Upload reference photos of your characters. The agent sends them to **Gemini 3.1 Flash** (image model) which generates a four-view character sheet (front, back, left, right) for each one.
+4. **Script & Scenes** — The agent proposes four storyboard concepts, then generates a full scene-by-scene script with timestamps and dialogue. Scene count is calculated from your chosen duration (~5 seconds per scene).
+5. **Scene Thumbnails** — Two phases:
+   - *Scene Locations* — **Gemini 3.1 Flash** generates a background/environment image for each scene.
+   - *Scene Thumbnails with Characters* — **Gemini 3.1 Flash** composites your characters into each location to create the final scene thumbnails.
+6. **Final Video** — Each scene thumbnail is sent to **Sora 2** (image-to-video) to generate a video clip. The clips are stitched together with **FFmpeg** into one continuous video and loaded into the preview player and timeline.
+
+The agent is powered by **Gemini 2.5 Flash** for all chat and reasoning, with the image and video generation models called through API routes as the pipeline progresses.
+
+## Tech Stack
+
+- **Next.js 16** with App Router and TypeScript
+- **Tailwind CSS v4** with a dark theme
+- **Zustand** for state management
+- **Gemini 2.5 Flash** — agent chat and reasoning
+- **Gemini 3.1 Flash** — character sheets, scene locations, and scene thumbnails (image generation)
+- **Sora 2** (OpenAI) — scene-to-video generation
+- **FFmpeg** — video stitching
+- **react-resizable-panels** for the editor layout
+
+## Getting Started
+
+```bash
+npm install
+npm run dev
+```
+
+Then open [http://localhost:3000](http://localhost:3000).
