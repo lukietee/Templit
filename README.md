@@ -1,6 +1,6 @@
 # Templit
 
-Templit is an AI-powered video editing platform — think Cursor, but for video. An AI agent guides you through the entire video creation process in a conversational chat interface, from initial concept to a fully produced, stitched-together video.
+Templit is an agentic video editing platform — think Cursor, but for video. An AI agent guides you through the entire video creation process in a conversational chat interface, from initial concept to a fully produced, stitched-together video.
 
 ## How It Works
 
@@ -25,7 +25,7 @@ The agent walks you through six steps, each with an approval gate where you can 
    - *Scene Thumbnails with Characters* — **Gemini 3.1 Flash** composites your characters into each location to create the final scene thumbnails.
 6. **Final Video** — Each scene thumbnail is sent to **Sora 2** (image-to-video) to generate a video clip. The clips are stitched together with **FFmpeg** into one continuous video and loaded into the preview player and timeline.
 
-The agent is powered by **Gemini 2.5 Flash** for all chat and reasoning, with the image and video generation models called through API routes as the pipeline progresses.
+The agent is orchestrated by **Gemini 2.5 Flash** for all chat and reasoning, with the image and video generation models called through API routes as the pipeline progresses.
 
 ## Tech Stack
 
