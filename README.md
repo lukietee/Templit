@@ -2,6 +2,9 @@
 
 Templit is an agentic video editing platform — think Cursor, but for video. An AI agent guides you through the entire video creation process in a conversational chat interface, from initial concept to a fully produced, stitched-together video.
 
+https://github.com/user-attachments/assets/32a197f9-4b06-4229-b1ad-75beaa78ae4d
+HD Demo: https://youtu.be/8RdLiv3fTVU
+
 ## How It Works
 
 Templit has two screens: a **landing page** where you enter your video idea, and the **editor** where the agent takes over.
