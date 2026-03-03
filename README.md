@@ -33,6 +33,12 @@ Throughout the entire pipeline, the agent maintains a **Project Overview** panel
 
 The agent is orchestrated by **Gemini 2.5 Flash** for all chat and reasoning, with the image and video generation models called through API routes as the pipeline progresses.
 
+## VExamples
+
+Prompt: Make a video to help me teach my kid how to make a grilled cheese sandwich.
+
+https://github.com/user-attachments/assets/ff4b7d09-5e4a-438c-9b88-4605ccafa33e
+
 ## Tech Stack
 
 - **Next.js 16** with App Router and TypeScript
