@@ -43,6 +43,10 @@ Prompt: Make a video to help me teach my kid how to make a hamburger.
 
 https://github.com/user-attachments/assets/066e50f9-e132-4231-9f7f-903f8281a4e3
 
+Prompt: Make a video about two friends learning how to make a grilled cheese sandwich.
+
+https://github.com/user-attachments/assets/2e6be1b6-4087-4867-926e-b272be2693db
+
 ## Tech Stack
 
 - **Next.js 16** with App Router and TypeScript
