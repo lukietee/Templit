@@ -39,13 +39,16 @@ Prompt: Make a video to help me teach my kid how to make a grilled cheese sandwi
 
 https://github.com/user-attachments/assets/ff4b7d09-5e4a-438c-9b88-4605ccafa33e
 
+
 Prompt: Make a video to help me teach my kid how to make a hamburger.
 
 https://github.com/user-attachments/assets/066e50f9-e132-4231-9f7f-903f8281a4e3
 
+
 Prompt: Make a video about two friends learning how to make a grilled cheese sandwich.
 
 https://github.com/user-attachments/assets/2e6be1b6-4087-4867-926e-b272be2693db
+
 
 ## Tech Stack
 
